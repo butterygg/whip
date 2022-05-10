@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional
 
 from dotenv import load_dotenv
 from httpx import AsyncClient
-from .types import Treasury
+from .types import Treasury, ERC20
 
 load_dotenv
 
