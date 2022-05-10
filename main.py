@@ -1,1 +1,0 @@
-from libs.extract import get_treasury_assets
