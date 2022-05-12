@@ -1,0 +1,23 @@
+services:
+  redis:
+    image: redis
+    networks:
+      - whip_nw
+  
+  api:
+    image: butter_whip/api
+    build: ./api
+    ports:
+      - "80:80"
+    networks:
+      - whip_nw
+    depends_on:
+      - redis
+    env_file:
+      - api/app.env
+    volumes:
+      - ./api/app/:/app/
+    command: /start-reload.sh
+
+networks:
+  whip_nw:
