@@ -1,0 +1,5 @@
+fastapi==0.77.1
+httpx==0.22.0
+pandas==1.4.2
+python-dateutil==2.8.1
+redis==4.3.1
