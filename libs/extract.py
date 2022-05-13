@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
 from httpx import AsyncClient
-from .types import ERC20, Quote, Treasury, HistoricalPrice
+from .types import ERC20, Quote, Treasury, HistoricalPrice, PortfolioHistoricalValue
 
 load_dotenv
 
@@ -31,13 +31,13 @@ async def get_historical_price_by_symbol(
     quote: Optional[str] = "USD",
     chain_id: Optional[int] = 1
 ) -> Dict[str, Any]:
-    if start_date == "a_year_ago":
+    if type(start_date) == tuple:
         from datetime import timedelta
         from dateutil.utils import today
         from dateutil.tz import UTC
 
         end_date = today(UTC)
-        start_date = end_date - timedelta(days=365)
+        start_date = end_date - timedelta(days=365 * start_date[0])
         start_date = start_date.strftime("%Y-%m-%d")
 
     async with AsyncClient() as client:
@@ -51,7 +51,6 @@ async def get_historical_price_by_symbol(
         )
 
         return resp.json()["data"]
-
 
 async def get_historical_price_by_address(
     token_contract: str,
@@ -88,7 +87,7 @@ async def get_treasury(portfolio: Dict[str, Any]) -> Treasury:
             )
         )
 
-    treasury = Treasury(portfolio["address"], [], windows)
+    treasury = Treasury(portfolio["address"], [], windows, [])
     for item in portfolio["items"]:
         if not item["holdings"][0]["close"]["quote"]:
             continue
