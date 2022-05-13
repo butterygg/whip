@@ -22,7 +22,12 @@ class HistoricalPrice:
     quotes: List[Quote]
 
 @dataclass
+class PortfolioHistoricalValue(HistoricalPrice):
+    treasury_address: str
+
+@dataclass
 class Treasury:
     address: str
     assets: List[ERC20]
-    portfolio: List[HistoricalPrice]
+    historical_prices: List[HistoricalPrice]
+    portfolio_value_ts: List[PortfolioHistoricalValue]
