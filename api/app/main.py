@@ -1,5 +1,6 @@
 import os
 
+from celery import Celery
 import redis
 from fastapi import FastAPI
 
@@ -11,3 +12,14 @@ from libs.pd_inter_calc import portfolio_filler
 
 app = FastAPI()
 db = redis.StrictRedis(host=os.environ["REDIS_HOST"])
+
+sched = Celery(
+    'whip',
+    include="whip.libs.tasks"
+)
+
+sched.config_from_object("whip.config.celeryconfig")
+
+if __name__ == "__main__":
+    sched.start()
+
