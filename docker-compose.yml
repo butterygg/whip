@@ -31,7 +31,7 @@ services:
       - scheduler/app.env
     volumes:
       -./scheduler/app:/app/
-    command: celery -A app -l INFO --pidfile=/var/run/celery/%n.pid --logfile=/var/log/celery/%n%I.log
+    command: "celery -A celery worker -l DEBUG --pidfile=/var/run/celery/%n.pid --logfile=/var/log/celery/%n%I.log"
 
 networks:
   whip_nw:
