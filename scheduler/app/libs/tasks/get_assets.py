@@ -4,6 +4,7 @@ from math import log
 from os import getenv
 from typing import Any, Dict, List
 
+from asgiref.sync import async_to_sync
 from dotenv import load_dotenv
 from pandas import DataFrame as DF, MultiIndex, Series, to_datetime
 # from redis import Redis
@@ -23,8 +24,7 @@ from . import (
 load_dotenv()
 
 async def clean_hist_prices(df: DF):
-    symbol_level = df.index.get_level_values(2)
-    symbol = symbol_level[0]
+    symbol = df["symbol"][0]
     df = df.reset_index()
 
     """ `returns` calculation section
@@ -92,7 +92,7 @@ async def populate_hist_tres_balance(asset_trans_history: Dict[str, Any]):
     if not asset_trans_history:
         return None
     blocks = asset_trans_history["items"]
-    balances = []
+    balances: List[float] = []
     timeseries = []
     address = ""
     symbol = ""
@@ -128,7 +128,8 @@ async def populate_hist_tres_balance(asset_trans_history: Dict[str, Any]):
     balances = Series(
         balances,
         index=index,
-        name="treasury_balances"
+        name="treasury_balances",
+        dtype="float64"
     )
 
     if len(balances) > 0:
@@ -139,78 +140,94 @@ def setup_periodic_tasks(sender, **kwargs):
     sender.add_periodic_task(30.0, load_treasury.s(), name="reload treasury data")
 
 @sched.task
-async def load_treasury():    
+def load_treasury():    
     with db.pipeline() as pipe:
         # key: `treasuries` contains an array of treasury addresses
-        treasuries: List[str] = pipe.lrange("treasuries")
+        treasuries: List[str] = db.lrange("treasuries", 0, -1)
 
         for raw_treasury in treasuries:
+            # print("treasury: ", raw_treasury)
             # contains treasury metadata; treasury's address, chain_id, etc.
             treasury_meta: Dict[str, Any] = loads(raw_treasury)
-            portfolio = await get_treasury_portfolio(treasury_meta["address"], treasury_meta.get("chain_id"))
+            portfolio = async_to_sync(get_treasury_portfolio)(treasury_meta["address"], treasury_meta.get("chain_id"))
 
-            treasury = await get_treasury(portfolio)
+            treasury = async_to_sync(get_treasury)(portfolio)
             treasury_assets = DF(data=treasury.assets, index=[asset["token_symbol"] for asset in treasury.assets])
             treasury_assets.drop(["token_name", "token_symbol"], axis=1, inplace=True)
             treasury_assets.rename_axis("token_symbol", inplace=True)
 
             asset_transfers = [
-                await get_token_transfers_for_wallet(treasury.address, token_contract)
+                async_to_sync(get_token_transfers_for_wallet)(treasury.address, token_contract)
                 for token_contract in treasury_assets["token_address"]
             ]
 
-            coroutines = as_completed([
-                populate_hist_tres_balance(trans_history)
+            coroutines = [
+                async_to_sync(populate_hist_tres_balance)(trans_history)
                 for trans_history in asset_transfers
-            ])
+            ]
 
             historical_treasury_balance: List[DF] = []
             for coro in coroutines:
-                result = await coro
+                result: Series = coro
+                # print(f"hist_tres result: {result}")
 
-                historical_treasury_balance.append(result) if result else None
+                if type(result) is Series:
+                    historical_treasury_balance.append(result) if not result.empty else None
             
-            coroutines = as_completed([
-                get_hist_prices_for_portfolio(symbol)
+            # print(f"tres_assets index: {treasury_assets.index.values}")
+            coroutines = [
+                async_to_sync(get_hist_prices_for_portfolio)(symbol)
                 for symbol in treasury_assets.index.values
-            ])
+            ]
 
             historical_price_for_portfolio_assets: List[DF] = []
             index = 0
             asset_dict = { }
             for coro in coroutines:
-                result = await coro
+                result = coro
+                if type(result) is not DF:
+                    continue
+                result = result.reset_index()
 
                 for asset in historical_treasury_balance:
-                    symbol: str = asset["symbol"][0]
-                    if symbol.find(result["symbol"]) > -1:
+                    asset = asset.reset_index()
+                    # print(type(asset))
+                    # print(result.iloc[0])
+                    symbol: str = asset["contract_symbol"][0]
+                    # print(f"asset_dict: {asset['contract_symbol']}")
+                    # print(f"symbol: {symbol}")
+                    if symbol.find(result["symbol"][0]) > -1:
                         asset_dict[symbol] = index
+                        index += 1
                         break
-                index += 1
 
-                historical_price_for_portfolio_assets.append(result) if result else None
+                historical_price_for_portfolio_assets.append(result) if not result.empty else None
 
             cleaned_hist_prices = []
             for df in historical_price_for_portfolio_assets:
                 balances = None
-                index = asset_dict.get(cleaned_df["symbol"])
+
+                cleaned_df: DF = async_to_sync(clean_hist_prices)(df)
+                index = asset_dict.get(cleaned_df["symbol"][0])
+                # print(asset_dict)
+                # print(historical_treasury_balance[1])
                 if index is not None:
                     balances = historical_treasury_balance[index]
                 else:
                     continue
-
-                cleaned_df = await clean_hist_prices(df)
                 cleaned_hist_prices.append(cleaned_df)
 
                 quote_rates = Series(data=cleaned_df["price"])
                 quote_rates.index = to_datetime(cleaned_df["timestamp"])
 
 
-                pipe.hset("balances", treasury.address[:6] + cleaned_df["symbol"], portfolio_filler(balances, quote_rates))
-                pipe.hset("hist_prices", cleaned_df["symbol"], cleaned_df.to_json(orient='records'))
+                print("piping results")
+                if len(balances) >= 2:
+                    pipe.hset("balances", treasury.address[:6] + cleaned_df["symbol"][0], portfolio_filler(balances, quote_rates).to_json(orient='records'))
+                pipe.hset("hist_prices", cleaned_df["symbol"][0], cleaned_df.to_json(orient='records'))
 
             pipe.set(treasury.address, treasury_assets.to_json(orient='records'))
-
+        print("success")
         pipe.execute()
 
     # db.close()

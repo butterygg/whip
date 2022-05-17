@@ -35,7 +35,7 @@ async def get_treasury(portfolio: Dict[str, Any]) -> Treasury:
             )
         )
 
-    treasury = Treasury(portfolio["address"], [], windows)
+    treasury = Treasury(portfolio["address"], [], windows, [])
     for item in portfolio["items"]:
         if not item["holdings"][0]["close"]["quote"]:
             continue

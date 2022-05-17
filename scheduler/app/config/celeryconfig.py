@@ -1,4 +1,4 @@
-broker_url = 'redis'
+broker_url = 'redis://redis'
 
 task_serializer = 'json'
 result_serializer = 'json'

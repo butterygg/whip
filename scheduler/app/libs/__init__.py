@@ -1,1 +1,1 @@
-from ..celery import sched, db
+from ..main import sched, db

@@ -9,13 +9,13 @@ async def get_historical_price_by_symbol(
     quote: Optional[str] = "USD",
     chain_id: Optional[int] = 1
 ) -> Dict[str, Any]:
-    if start_date == "a_year_ago":
+    if type(start_date) == tuple:
         from datetime import timedelta
         from dateutil.utils import today
         from dateutil.tz import UTC
 
         end_date = today(UTC)
-        start_date = end_date - timedelta(days=365)
+        start_date = end_date - timedelta(days=365 * start_date[0])
         start_date = start_date.strftime("%Y-%m-%d")
 
     async with AsyncClient() as client:
@@ -28,6 +28,7 @@ async def get_historical_price_by_symbol(
                 f"&from={start_date}"
         )
 
+        # print("url: ", resp.url)
         return resp.json()["data"]
 
 

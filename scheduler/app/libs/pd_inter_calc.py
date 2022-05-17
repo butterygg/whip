@@ -9,6 +9,8 @@ def portfolio_filler(portfolio_balances: Series, quote_rates: Series) -> Series:
     filled_dates = []
     rows = list(portfolio_balances.to_dict().items())
     index = 0
+    if len(rows) < 2:
+        return
     for date, balance in rows:
         curr_date: datetime = date[0]
         next_date: datetime = rows[index + 1][0][0]
