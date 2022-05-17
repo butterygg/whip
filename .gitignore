@@ -1,8 +1,8 @@
 # files
 ## made by celery
-.dat
-.bak
-.dir
+*.dat
+*.bak
+*.dir
 ## env files
 .env
 
