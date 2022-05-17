@@ -33,7 +33,7 @@ services:
       - scheduler/app.env
     volumes:
       - ./scheduler/app:/entrypoint/app/
-    command: "celery -A celery worker -l DEBUG --pidfile=/var/run/celery/%n.pid --logfile=/var/log/celery/%n%I.log"
+    command: "celery -A app.main worker --concurrency=1 -B -l INFO --pidfile=/var/run/celery/%n.pid --logfile=/var/log/celery/%n%I.log"
 
 networks:
   whip_nw:
