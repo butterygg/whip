@@ -1,0 +1,11 @@
+[build]
+  base = "frontend/"
+  publish = "dist/"
+  command = "sed -i \"s|API_URL|${API_URL}|g\" ../netlify.toml && npm run build"
+
+[[redirects]]
+  from = "/api/*"
+  to = "API_URL/:splat"
+  status = 200
+  force = true
+  headers = {X-From = "Netlify"}
