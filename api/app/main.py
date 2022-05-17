@@ -13,6 +13,7 @@ from libs.extract import (
 from libs.pd_inter_calc import portfolio_filler
 
 app = FastAPI()
+
 if "REDIS_TLS_URL" in os.environ:
     db = redis.StrictRedis.from_url(os.environ["REDIS_TLS_URL"])
 elif "REDIS_URL" in os.environ:
