@@ -19,3 +19,19 @@ elif "REDIS_URL" in os.environ:
     db = redis.StrictRedis.from_url(os.environ["REDIS_URL"])
 else:
     db = redis.StrictRedis(host=os.environ["REDIS_HOST"])
+
+
+@app.get("/testapi")
+def testapi():
+    return {
+        "UNI": {
+            "allocation": 0.95,
+            "volatility": 0.7,
+            "riskContribution": 0.99,
+        },
+        "DAI": {
+            "allocation": 0.05,
+            "volatility": 0.01,
+            "riskContribution": 0.01,
+        },
+    }

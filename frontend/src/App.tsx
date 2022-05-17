@@ -96,41 +96,33 @@ function App() {
   ];
 
   useEffect(() => {
-    // API call…
+    (async () => {
+      const resp = await fetch("/api/testapi");
+      if (!resp.ok)
+        throw new Error(`testapi fetch failed with status: ${resp.statusText}`);
+      const assets = await resp.json();
 
-    const assets = {
-      UNI: {
-        allocation: 0.95,
-        volatility: 0.7,
-        riskContribution: 0.99,
-      },
-      DAI: {
-        allocation: 0.05,
-        volatility: 0.01,
-        riskContribution: 0.01,
-      },
-    };
+      const kpis = {
+        "total value": "$100m",
+        volatility: "high",
+        "return vs market": "-11%",
+      };
 
-    const kpis = {
-      "total value": "$100m",
-      volatility: "high",
-      "return vs market": "-11%",
-    };
+      setBaseAssets(assets);
+      setBaseKpis(kpis);
 
-    setBaseAssets(assets);
-    setBaseKpis(kpis);
-
-    setChartData({
-      labels: ["January", "February", "March", "April", "May", "June"],
-      datasets: [
-        {
-          label: "Total value in m USD",
-          backgroundColor: "rgb(83, 83, 83)",
-          borderColor: "rgb(83, 83, 83)",
-          data: [42, 48, 45, 42, 33, 23],
-        },
-      ],
-    });
+      setChartData({
+        labels: ["January", "February", "March", "April", "May", "June"],
+        datasets: [
+          {
+            label: "Total value in m USD",
+            backgroundColor: "rgb(83, 83, 83)",
+            borderColor: "rgb(83, 83, 83)",
+            data: [42, 48, 45, 42, 33, 23],
+          },
+        ],
+      });
+    })();
   }, []);
 
   const dummyAddSpreadAsset = () => {

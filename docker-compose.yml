@@ -1,12 +1,17 @@
 services:
   redis:
+    profiles: ["backend"]
     image: redis
     networks:
       - whip_nw
-  
+
   api:
-    image: butter_whip/api
-    build: ./api
+    profiles: ["backend"]
+    image: butter_whip/api:dev
+    build:
+      context: ./api
+      args:
+        TAG: python3.9
     ports:
       - "80:80"
     networks:
@@ -18,6 +23,26 @@ services:
     volumes:
       - ./api/app/:/app/
     command: /start-reload.sh
+
+  frontend:
+    profiles: ["frontend"]
+    image: butter_whip/frontend:dev
+    build: ./frontend
+    expose:
+      - 3000
+      - 3010
+    ports:
+      - "3000:3000"
+      - "3010:3010"
+    networks:
+      - whip_nw
+    depends_on:
+      - api
+    environment:
+      - API_URL=http://api
+    volumes:
+      - ./frontend/:/app/
+      - /app/node_modules/
 
 networks:
   whip_nw:
