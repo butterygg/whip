@@ -3,6 +3,8 @@ services:
     image: redis
     networks:
       - whip_nw
+    ports:
+      - 6379:6379
   
   api:
     image: butter_whip/api
