@@ -30,7 +30,7 @@ services:
     env_file:
       - scheduler/app.env
     volumes:
-      -./scheduler/app:/app/
+      - ./scheduler/app:/entrypoint/app/
     command: "celery -A celery worker -l DEBUG --pidfile=/var/run/celery/%n.pid --logfile=/var/log/celery/%n%I.log"
 
 networks:
