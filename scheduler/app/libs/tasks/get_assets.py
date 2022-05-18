@@ -139,7 +139,7 @@ def setup_periodic_tasks(sender, **kwargs):
 @sched.task
 def load_treasury():    
     with db.pipeline() as pipe:
-        # key: `treasuries` contains an array of treasury addresses
+        # key: `treasuries` contains an array of treasury metadata objects
         treasuries: List[str] = db.lrange("treasuries", 0, -1)
 
         for raw_treasury in treasuries:
