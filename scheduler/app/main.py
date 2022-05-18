@@ -13,7 +13,6 @@ db.rpush("treasuries", dumps({"address": "0x1a9C8182C09F50C8318d769245beA52c32BE
 sched = Celery(
     'app',
     include=["app.libs.tasks"],
-    # broker="redis://localhost"
 )
 
 sched.config_from_object("app.config.celeryconfig")
