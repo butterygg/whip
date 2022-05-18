@@ -1,4 +1,6 @@
-FROM tiangolo/uvicorn-gunicorn-fastapi:python3.9
+ARG TAG=python3.9-slim
+
+FROM tiangolo/uvicorn-gunicorn-fastapi:$TAG
 
 COPY requirements.txt /app/
 
