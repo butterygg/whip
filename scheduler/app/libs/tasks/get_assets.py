@@ -1,13 +1,10 @@
-from asyncio import as_completed
 from dateutil import parser
 from math import log
-from os import getenv
 from typing import Any, Dict, List
 
 from asgiref.sync import async_to_sync
 from dotenv import load_dotenv
 from pandas import DataFrame as DF, MultiIndex, Series, to_datetime
-# from redis import Redis
 from ujson import dumps, loads
 
 from . import (
@@ -146,7 +143,6 @@ def load_treasury():
         treasuries: List[str] = db.lrange("treasuries", 0, -1)
 
         for raw_treasury in treasuries:
-            # print("treasury: ", raw_treasury)
             # contains treasury metadata; treasury's address, chain_id, etc.
             treasury_meta: Dict[str, Any] = loads(raw_treasury)
             portfolio = async_to_sync(get_treasury_portfolio)(treasury_meta["address"], treasury_meta.get("chain_id"))
@@ -169,12 +165,10 @@ def load_treasury():
             historical_treasury_balance: List[DF] = []
             for coro in coroutines:
                 result: Series = coro
-                # print(f"hist_tres result: {result}")
 
                 if type(result) is Series:
                     historical_treasury_balance.append(result) if not result.empty else None
             
-            # print(f"tres_assets index: {treasury_assets.index.values}")
             coroutines = [
                 async_to_sync(get_hist_prices_for_portfolio)(symbol)
                 for symbol in treasury_assets.index.values
@@ -191,11 +185,7 @@ def load_treasury():
 
                 for asset in historical_treasury_balance:
                     asset = asset.reset_index()
-                    # print(type(asset))
-                    # print(result.iloc[0])
                     symbol: str = asset["contract_symbol"][0]
-                    # print(f"asset_dict: {asset['contract_symbol']}")
-                    # print(f"symbol: {symbol}")
                     if symbol.find(result["symbol"][0]) > -1:
                         asset_dict[symbol] = index
                         index += 1
@@ -209,8 +199,6 @@ def load_treasury():
 
                 cleaned_df: DF = async_to_sync(clean_hist_prices)(df)
                 index = asset_dict.get(cleaned_df["symbol"][0])
-                # print(asset_dict)
-                # print(historical_treasury_balance[1])
                 if index is not None:
                     balances = historical_treasury_balance[index]
                 else:
@@ -229,5 +217,3 @@ def load_treasury():
             pipe.set(treasury.address, treasury_assets.to_json(orient='records'))
         print("success")
         pipe.execute()
-
-    # db.close()
