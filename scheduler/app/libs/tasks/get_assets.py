@@ -21,7 +21,7 @@ from . import (
 load_dotenv()
 
 async def clean_hist_prices(df: DF):
-    symbol = df["symbol"][0]
+    symbol = df.index[0][2]
     df = df.reset_index()
 
     """ `returns` calculation section
@@ -60,6 +60,7 @@ async def clean_hist_prices(df: DF):
 
     return df
 
+# [XXX] cache and run every day
 async def get_hist_prices_for_portfolio(symbol: str):
     covalent_resp = await get_historical_price_by_symbol(
         symbol,
