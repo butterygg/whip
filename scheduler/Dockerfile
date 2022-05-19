@@ -16,4 +16,4 @@ RUN python -c "import app"
 
 RUN touch __init__.py
 
-# CMD [ "celery", "-A", "celery", "worker", "-l", "DEBUG", "--pidfile=/var/run/celery/%n.pid", "--logfile=/var/log/celery/%n%I.log" ]
+# CMD [ "celery", "-A", "celery", "worker", "-l", "DEBUG", "--pidfile=", "--logfile=/var/log/celery/%n%I.log" ]
