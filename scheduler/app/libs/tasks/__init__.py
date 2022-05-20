@@ -12,4 +12,4 @@ from ..covalent import (
 )
 from ..pd_inter_calc import portfolio_filler
 
-from .get_assets import load_treasury
+from ..types import Treasury
