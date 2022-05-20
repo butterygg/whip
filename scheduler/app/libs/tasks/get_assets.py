@@ -1,13 +1,17 @@
+from concurrent.futures import ThreadPoolExecutor
 from dateutil import parser
-from math import log
-from typing import Any, Dict, List
+from math import log, floor
+from typing import Any, Dict, List, Tuple
 
 from asgiref.sync import async_to_sync
 from dotenv import load_dotenv
 from pandas import DataFrame as DF, MultiIndex, Series, to_datetime
-from ujson import dumps, loads
+from ujson import loads
+from web3 import Web3
 
 from . import (
+    get_coin_hist_price,
+    coingecko_hist_df,
     get_treasury,
     get_treasury_portfolio,
     get_token_transfers_for_wallet,
@@ -15,7 +19,8 @@ from . import (
     portfolio_filler,
 
     db,
-    sched
+    sched,
+    w3
 )
 
 load_dotenv()
@@ -70,21 +75,49 @@ async def get_hist_prices_for_portfolio(symbol: str):
     if not covalent_resp:
         return
 
+    contract_address = covalent_resp["prices"][0]["contract_metadata"]["contract_address"]
+    decimals = covalent_resp["contract_decimals"]
     indexes = MultiIndex.from_tuples(
         [
-            (ts, address, symbol) for ts, address
-            in zip(
-                [ price["date"] for price in covalent_resp["prices"] ],
-                [ price["contract_metadata"]["contract_address"] for price in covalent_resp["prices"] ]
-            )
+            (ts, contract_address, symbol, decimals) for ts
+            in [ to_datetime((price["date"]), utc=True) for price in covalent_resp["prices"] ]
         ],
-        names=["timestamp", "address", "symbol"]
+        names=["timestamp", "address", "symbol", "decimals"]
     )
 
     return DF(
         data=covalent_resp["prices"],
         index=indexes
     ).drop(["contract_metadata", "date"], axis=1)
+
+def get_hist_native_balances(wallet_address: str):
+    wallet_address = Web3.toChecksumAddress(wallet_address)
+    end = w3.eth.block_number
+    buffer = floor(end / 1000)
+    buffer = buffer if buffer >= 1 else 1
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        inputs = [
+            (wallet_address, block) for block in range(0, end + 1, buffer)
+        ]
+        balances = [
+            {ts: balance} for ts, balance
+            in zip(
+                executor.map(get_block_ts, [ block_num for block_num in range(0, end + 1, buffer) ], chunksize=5760),
+                executor.map(get_hist_eth_balance, inputs, chunksize=5760)
+            )
+            if balance > 0
+        ]
+
+        timestamps = []
+        balance_vals = []
+        for balance in balances:
+            timestamps.append(balance.keys()[0])
+            balance_vals.append(balance.values()[0])
+
+        return Series(
+            balance_vals,
+            index=timestamps
+        )
 
 async def populate_hist_tres_balance(asset_trans_history: Dict[str, Any]):
     if not asset_trans_history:
@@ -98,6 +131,7 @@ async def populate_hist_tres_balance(asset_trans_history: Dict[str, Any]):
     end_index = len(blocks) - 1
     for i in range(end_index, -1, -1):
         transfers = blocks[i]["transfers"]
+        decimals = int(transfers[0]["contract_decimals"])
         if i == end_index:
             address = transfers[0]["contract_address"]
             symbol = transfers[0]["contract_ticker_symbol"]
@@ -107,10 +141,10 @@ async def populate_hist_tres_balance(asset_trans_history: Dict[str, Any]):
                 continue
             delta = int(transfer["delta"])
             if transfer["transfer_type"] == "IN":
-                curr_balance += delta / 1e18
+                curr_balance += delta / 10 ** decimals if decimals > 0 else 1
                 balances.append(curr_balance)
             else:
-                curr_balance -= delta / 1e18
+                curr_balance -= delta / 10 ** decimals if decimals > 0 else 1
                 balances.append(curr_balance)
 
             timeseries.append(parser.parse(transfer["block_signed_at"]))
@@ -138,7 +172,7 @@ def setup_periodic_tasks(sender, **kwargs):
     sender.add_periodic_task(30.0, load_treasury.s(), name="reload treasury data")
 
 @sched.task
-def load_treasury():    
+def load_treasury():
     with db.pipeline() as pipe:
         # key: `treasuries` contains an array of treasury metadata objects
         treasuries: List[str] = db.lrange("treasuries", 0, -1)
@@ -163,16 +197,22 @@ def load_treasury():
                 for trans_history in asset_transfers
             ]
 
-            historical_treasury_balance: List[DF] = []
+            historical_treasury_balance: List[Series] = []
             for coro in coroutines:
                 result: Series = coro
 
                 if type(result) is Series:
                     historical_treasury_balance.append(result) if not result.empty else None
             
+            print(f"no. of assets: {len(treasury_assets)}")
+            raw_hist_prices: List[Tuple[str, str, List[List[int]]]] = [
+                async_to_sync(get_coin_hist_price)(address, sym, (2, "years"))
+                for address, sym in zip(treasury_assets["token_address"], treasury_assets.index.values.tolist())
+            ]
+
             coroutines = [
-                async_to_sync(get_hist_prices_for_portfolio)(symbol)
-                for symbol in treasury_assets.index.values
+                coingecko_hist_df(address, symbol, resp)
+                for address, symbol, resp in raw_hist_prices if resp
             ]
 
             historical_price_for_portfolio_assets: List[DF] = []
@@ -193,11 +233,13 @@ def load_treasury():
                         break
 
                 historical_price_for_portfolio_assets.append(result) if not result.empty else None
-
+            
             cleaned_hist_prices = []
+            # print(treasury_assets)
             for df in historical_price_for_portfolio_assets:
                 balances = None
 
+                # print(df)
                 cleaned_df: DF = async_to_sync(clean_hist_prices)(df)
                 index = asset_dict.get(cleaned_df["symbol"][0])
                 if index is not None:
@@ -210,11 +252,16 @@ def load_treasury():
                 quote_rates.index = to_datetime(cleaned_df["timestamp"])
 
 
-                print("piping results")
+                print(f"piping results for {cleaned_df['symbol'][0]}")
                 if len(balances) >= 2:
-                    pipe.hset("balances", treasury.address[:6] + cleaned_df["symbol"][0], portfolio_filler(balances, quote_rates).to_json(orient='records'))
+                    contract_address = balances.index.get_level_values(1).to_list()
+                    quote_rates = quote_rates.iloc[::-1]
+                    portfolio_performance = portfolio_filler(balances, quote_rates, contract_address[0])
+                    print(f"portfolio perf for {treasury.address[:6] + '_' + cleaned_df['symbol'][0]}: {portfolio_performance[-5:]}")
+                    pipe.hset("balances", treasury.address[:6] + "_" + cleaned_df["symbol"][0], portfolio_performance.to_json(orient='records'))
                 pipe.hset("hist_prices", cleaned_df["symbol"][0], cleaned_df.to_json(orient='records'))
 
+            # pipe.hset("balances", treasury.address[:6] + "_" + "ETH", get_hist_native_balances(treasury.address).to_json(orient='records'))
             pipe.set(treasury.address, treasury_assets.to_json(orient='records'))
-        print("success")
         pipe.execute()
+        print("success")

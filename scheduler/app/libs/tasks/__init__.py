@@ -1,4 +1,9 @@
-from .. import db, sched
+from .. import db, sched, w3
+from ..coingecko import (
+    get_coin_list,
+    get_coin_hist_price,
+    coingecko_hist_df
+)
 from ..covalent import (
     get_treasury_portfolio,
     get_treasury,

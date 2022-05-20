@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from dateutil.utils import today
 from dateutil.tz import UTC
 
-from pandas import Index, Series
+from pandas import DataFrame as DF, Index, Series
 
 def portfolio_filler(portfolio_balances: Series, quote_rates: Series) -> Series:
     def find_closest_quote(date: datetime):
@@ -35,17 +35,17 @@ def portfolio_filler(portfolio_balances: Series, quote_rates: Series) -> Series:
         index += 1
         if index == len(rows) - 1:
             curr_date = today(UTC)
+            curr_balance = rows[-1][1]
+
             prev_date: datetime = filled_dates[-1]
             prev_date += timedelta(days=1)
-            sub_cnt = 0
-            while prev_date < curr_date:
+            while prev_date <= curr_date:
                     
                 curr_quote = find_closest_quote(prev_date)
                 filled_rows.append(curr_balance * curr_quote)
                 filled_dates.append(prev_date)
 
                 prev_date += timedelta(days=1)
-                sub_cnt += 1
             break
 
-    return Series(filled_rows, index=Index(filled_dates, name="timestamp"), name="balance")        
+    return DF([[ts, value] for ts, value in zip(filled_dates, filled_rows)], index=Index(filled_dates, name="timestamp"), columns=["timestamp", "balance"])        
