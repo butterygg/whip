@@ -255,7 +255,9 @@ def load_treasury():
                 if len(balances) >= 2:
                     contract_address = balances.index.get_level_values(1).to_list()
                     quote_rates = quote_rates.iloc[::-1]
-                    pipe.hset("balances", treasury.address[:6] + "_" + cleaned_df["symbol"][0], portfolio_filler(balances, quote_rates, contract_address[0]).to_json(orient='records'))
+                    portfolio_performance = portfolio_filler(balances, quote_rates, contract_address[0])
+                    print(f"portfolio perf for {treasury.address[:6] + '_' + cleaned_df['symbol'][0]}: {portfolio_performance[-5:]}")
+                    pipe.hset("balances", treasury.address[:6] + "_" + cleaned_df["symbol"][0], portfolio_performance.to_json(orient='records'))
                 pipe.hset("hist_prices", cleaned_df["symbol"][0], cleaned_df.to_json(orient='records'))
 
             # pipe.hset("balances", treasury.address[:6] + "_" + "ETH", get_hist_native_balances(treasury.address).to_json(orient='records'))
