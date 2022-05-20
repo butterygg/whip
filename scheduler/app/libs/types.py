@@ -22,15 +22,10 @@ class HistoricalPrice:
     quotes: List[Quote]
 
 @dataclass
-class PortfolioHistoricalValue(HistoricalPrice):
-    treasury_address: str
-
-@dataclass
 class Treasury:
     address: str
     assets: List[ERC20]
     historical_prices: List[HistoricalPrice]
-    portfolio_value_ts: List[PortfolioHistoricalValue]
     usd_total: float = field(init=False)
 
     def __post_init__(self):
