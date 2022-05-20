@@ -7,136 +7,94 @@ from asgiref.sync import async_to_sync
 from dotenv import load_dotenv
 from pandas import DataFrame as DF, MultiIndex, Series, to_datetime
 from ujson import loads
-from web3 import Web3
 
 from . import (
-    get_coin_hist_price,
+    Treasury,
+
     coingecko_hist_df,
+    get_coin_hist_price,
     get_treasury,
     get_treasury_portfolio,
     get_token_transfers_for_wallet,
-    get_historical_price_by_symbol,
     portfolio_filler,
 
     db,
     sched,
     w3
 )
+from .treasury_ops import *
 
 load_dotenv()
 
-async def clean_hist_prices(df: DF):
-    symbol = df["symbol"][0]
-    df = df.reset_index()
+async def make_treasury(treasury_address: str, chain_id: int) -> Treasury:
+    return await get_treasury(await get_treasury_portfolio(treasury_address, chain_id))
 
-    """ `returns` calculation section
 
-        `returns` = ln(current_price / previous_price)
-    """
-    returns = []
-    for i in range(1, len(df)):
-        try:
-            # current price is df[i - 1] since `loc` descends the DF
-            returns.append(log(df.loc[i - 1, "price"] / df.loc[i, "price"]))
-        except Exception as e:
-            print("misbehaving case: \n")
-            print(f"\tsymbol: {symbol}\n\tindex: {i}\n\tcurr_price: {df.loc[i - 1, 'price']}\n\tprev_price: {df.loc[i, 'price']}")
-            returns.append(None)
-    returns.append(0)
-    df["returns"] = returns
+def filter_out_small_assets(treasury: Treasury):
+    treasury.assets = [
+        asset for asset in treasury.assets
+        if asset.balance/treasury.usd_total >= 0.5/100
+    ]
+    return treasury
 
-    """ end section
-    """
+async def get_sparse_asset_hist_balances(treasury: Treasury) -> dict[str, Series]:
+    asset_contract_addresses = {
+        asset.token_symbol: asset.token_address for asset in treasury.assets
+    }
+    transfer_histories = {
+        symbol: await get_token_transfers_for_wallet(treasury.address, asset_contract_address)
+        for symbol, asset_contract_address in asset_contract_addresses.items()
+    }
+    maybe_sparse_asset_hist_balances = {
+        symbol: await populate_hist_tres_balance(transfer_history)
+        for symbol, transfer_history in transfer_histories.items()
+    }
+    return {
+        symbol: hist
+        for symbol, hist in maybe_sparse_asset_hist_balances.items()
+        if hist is not None and not hist.empty
+    }
 
-    """ rolling std_dev of `returns` section
 
-        period/window can be conifgurable, 7 days was set
-    """
+async def get_token_hist_prices(treasury: Treasury) -> dict[str, DF]:
+    maybe_hist_prices = {
+        asset.token_symbol: await get_hist_prices_for_portfolio(asset.token_symbol)
+        for asset in treasury.assets
+    }
+    return {symbol: hist for symbol, hist in maybe_hist_prices.items() if hist is not None}
 
-    window = 7
-    rolling_window = df["returns"].iloc[::-1].rolling(window)
-    std_dev = rolling_window.std(ddof=0)
-    df["std_dev"] = std_dev
+async def augment_token_hist_prices(
+    token_hist_prices: dict[str, DF]
+) -> dict[str, DF]:
+    return {
+        symbol: await clean_hist_prices(token_hist_price)
+        for symbol, token_hist_price in token_hist_prices.items()
+    }
 
-    """ end section
-    """
+async def fill_asset_hist_balances(
+    sparse_asset_hist_balances: dict[str, Series],
+    augmented_token_hist_prices: dict[str, DF]
+) -> dict[str, DF]:
+    def fill_asset_hist_balance(symbol, augmented_token_hist_price):
+        if (
+            symbol not in sparse_asset_hist_balances or
+            len(sparse_asset_hist_balances[symbol]) < 2
+        ):
+            return None
+        quote_rates = Series(data=augmented_token_hist_price["price"])
+        quote_rates.index = to_datetime(augmented_token_hist_price["timestamp"])
+        return portfolio_filler(sparse_asset_hist_balances[symbol], quote_rates)
 
-    df = df.iloc[::-1]
+    maybe_asset_hist_balance = {
+        symbol: fill_asset_hist_balance(symbol, augmented_token_hist_price)
+        for symbol, augmented_token_hist_price in augmented_token_hist_prices.items()
+    }
+    return {
+        symbol: asset_hist_balance
+        for symbol, asset_hist_balance in maybe_asset_hist_balance.items()
+        if asset_hist_balance is not None
+    }
 
-    return df
-
-# [XXX] cache and run every day
-async def get_hist_prices_for_portfolio(symbol: str):
-    covalent_resp = await get_historical_price_by_symbol(
-        symbol,
-        (2, "years")
-    )
-
-    if not covalent_resp:
-        return
-
-    contract_address = covalent_resp["prices"][0]["contract_metadata"]["contract_address"]
-    decimals = covalent_resp["contract_decimals"]
-    indexes = MultiIndex.from_tuples(
-        [
-            (ts, contract_address, symbol, decimals) for ts
-            in [ to_datetime((price["date"]), utc=True) for price in covalent_resp["prices"] ]
-        ],
-        names=["timestamp", "address", "symbol", "decimals"]
-    )
-
-    return DF(
-        data=covalent_resp["prices"],
-        index=indexes
-    ).drop(["contract_metadata", "date"], axis=1)
-
-async def populate_hist_tres_balance(asset_trans_history: Dict[str, Any]):
-    if not asset_trans_history:
-        return None
-    blocks = asset_trans_history["items"]
-    balances: List[float] = []
-    timeseries = []
-    address = ""
-    symbol = ""
-    curr_balance = 0.0
-    end_index = len(blocks) - 1
-    for i in range(end_index, -1, -1):
-        transfers = blocks[i]["transfers"]
-        decimals = int(transfers[0]["contract_decimals"])
-        if i == end_index:
-            address = transfers[0]["contract_address"]
-            symbol = transfers[0]["contract_ticker_symbol"]
-
-        for transfer in transfers:
-            if not transfer["quote_rate"]:
-                continue
-            delta = int(transfer["delta"])
-            if transfer["transfer_type"] == "IN":
-                curr_balance += delta / 10 ** decimals if decimals > 0 else 1
-                balances.append(curr_balance)
-            else:
-                curr_balance -= delta / 10 ** decimals if decimals > 0 else 1
-                balances.append(curr_balance)
-
-            timeseries.append(parser.parse(transfer["block_signed_at"]))
-
-    index = MultiIndex.from_tuples(
-        [
-            (ts, address, symbol)
-            for ts in timeseries
-        ],
-        names=["timestamp", "contract_address", "contract_symbol"] 
-    )
-
-    balances = Series(
-        balances,
-        index=index,
-        name="treasury_balances",
-        dtype="float64"
-    )
-
-    if len(balances) > 0:
-        return balances
 
 @sched.on_after_finalize.connect
 def setup_periodic_tasks(sender, **kwargs):
@@ -151,9 +109,8 @@ def load_treasury():
         for raw_treasury in treasuries:
             # contains treasury metadata; treasury's address, chain_id, etc.
             treasury_meta: Dict[str, Any] = loads(raw_treasury)
-            portfolio = async_to_sync(get_treasury_portfolio)(treasury_meta["address"], treasury_meta.get("chain_id"))
 
-            treasury = async_to_sync(get_treasury)(portfolio)
+            treasury = filter_out_small_assets(async_to_sync(make_treasury)(treasury_meta["address"], 1))
             treasury_assets = DF(data=treasury.assets, index=[asset.token_symbol for asset in treasury.assets])
             treasury_assets.drop(["token_name", "token_symbol"], axis=1, inplace=True)
             treasury_assets.rename_axis("token_symbol", inplace=True)
@@ -206,11 +163,9 @@ def load_treasury():
                 historical_price_for_portfolio_assets.append(result) if not result.empty else None
             
             cleaned_hist_prices = []
-            # print(treasury_assets)
             for df in historical_price_for_portfolio_assets:
                 balances = None
 
-                # print(df)
                 cleaned_df: DF = async_to_sync(clean_hist_prices)(df)
                 index = asset_dict.get(cleaned_df["symbol"][0])
                 if index is not None:
