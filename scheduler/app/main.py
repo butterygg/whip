@@ -8,8 +8,8 @@ from web3.middleware import geth_poa_middleware
 
 db = redis.StrictRedis(host=os.environ["REDIS_HOST"], decode_responses=True)
 
-# # add the uniswap treasury is not added already
-# db.lrem("treasuries", 1, "0x1a9C8182C09F50C8318d769245beA52c32BE35BC")
+# add the uniswap treasury is not added already
+# db.lrem("treasuries", 1, dumps({"address": "0x1a9C8182C09F50C8318d769245beA52c32BE35BC", "chain_id": 1}))
 # db.rpush("treasuries", dumps({"address": "0x1a9C8182C09F50C8318d769245beA52c32BE35BC", "chain_id": 1}))
 
 sched = Celery(
