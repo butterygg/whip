@@ -12,9 +12,16 @@ async def make_treasury(treasury_address: str, chain_id: int) -> Treasury:
     return await get_treasury(await get_treasury_portfolio(treasury_address, chain_id))
 
 
+def filter_out_small_assets(treasury: Treasury):
+    treasury.assets = [
+        asset for asset in treasury.assets
+        if asset.balance/treasury.usd_total >= 0.5/100
+    ]
+    return treasury
+
 async def get_sparse_asset_hist_balances(treasury: Treasury) -> dict[str, Series]:
     asset_contract_addresses = {
-        asset['token_symbol']: asset['token_address'] for asset in treasury.assets
+        asset.token_symbol: asset.token_address for asset in treasury.assets
     }
     transfer_histories = {
         symbol: await get_token_transfers_for_wallet(treasury.address, asset_contract_address)
@@ -33,7 +40,7 @@ async def get_sparse_asset_hist_balances(treasury: Treasury) -> dict[str, Series
 
 async def get_token_hist_prices(treasury: Treasury) -> dict[str, DataFrame]:
     maybe_hist_prices = {
-        asset['token_symbol']: await get_hist_prices_for_portfolio(asset['token_symbol'])
+        asset.token_symbol: await get_hist_prices_for_portfolio(asset.token_symbol)
         for asset in treasury.assets
     }
     return {symbol: hist for symbol, hist in maybe_hist_prices.items() if hist is not None}
@@ -72,7 +79,7 @@ async def fill_asset_hist_balances(
 
 
 async def main(treasury_address: str, chain_id: int) -> tuple[Treasury, dict[str, DataFrame]]:
-    treasury = await make_treasury(treasury_address, chain_id)
+    treasury = filter_out_small_assets(await make_treasury(treasury_address, chain_id))
     return treasury, await fill_asset_hist_balances(
         await get_sparse_asset_hist_balances(treasury),
         await augment_token_hist_prices(await get_token_hist_prices(treasury))

@@ -1,6 +1,6 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, List
+from typing import List
 
 @dataclass
 class ERC20:
@@ -31,3 +31,10 @@ class Treasury:
     assets: List[ERC20]
     historical_prices: List[HistoricalPrice]
     portfolio_value_ts: List[PortfolioHistoricalValue]
+    usd_total: float = field(init=False)
+
+    def __post_init__(self):
+        self.usd_total = sum(
+            asset.balance for asset in self.assets
+            if asset.balance is not None
+        )

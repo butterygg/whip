@@ -35,17 +35,14 @@ async def get_treasury(portfolio: Dict[str, Any]) -> Treasury:
             )
         )
 
-    treasury = Treasury(portfolio["address"], [], windows, [])
-    for item in portfolio["items"]:
-        if not item["holdings"][0]["close"]["quote"]:
-            continue
-        treasury.assets.append(
-            ERC20(
-                item["contract_name"],
-                item["contract_ticker_symbol"],
-                item["contract_address"],
-                item["holdings"][0]["close"]["quote"]
-            ).__dict__
-        )
-
-    return treasury
+    assets = [
+        ERC20(
+            item["contract_name"],
+            item["contract_ticker_symbol"],
+            item["contract_address"],
+            item["holdings"][0]["close"]["quote"]
+        ) for item in portfolio['items']
+        if item["holdings"][0]["close"]["quote"]
+    ]
+    
+    return Treasury(portfolio["address"], assets, windows, [])
