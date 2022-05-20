@@ -225,7 +225,6 @@ def load_treasury():
 
                 print(f"piping results for {cleaned_df['symbol'][0]}")
                 if len(balances) >= 2:
-                    contract_address = balances.index.get_level_values(1).to_list()
                     quote_rates = quote_rates.iloc[::-1]
                     portfolio_performance = portfolio_filler(balances, quote_rates)
                     print(f"portfolio perf for {treasury.address[:6] + '_' + cleaned_df['symbol'][0]}: {portfolio_performance[-5:]}")
