@@ -26,7 +26,7 @@ async def get_coin_hist_price(contract_address: str, symbol: str, start: Union[i
         start: datetime = end - timedelta(days=365 * start[0])
         start = mktime(start.timetuple())
         end = mktime(end.timetuple())
-    timeout = Timeout(read=15.0, connect=30.0)
+    timeout = Timeout(10.0, read=15.0, connect=30.0)
     async with AsyncClient(
         headers={
             "user-agent":

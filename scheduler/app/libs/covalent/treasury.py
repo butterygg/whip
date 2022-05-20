@@ -3,13 +3,14 @@ from os import getenv
 from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
-from httpx import AsyncClient
+from httpx import AsyncClient, Timeout
 from ..types import ERC20, Quote, Treasury, HistoricalPrice
 
 load_dotenv
 
 async def get_treasury_portfolio(treasury_address: str, chain_id: Optional[int] = 1) -> Dict[str, Any]:
-    async with AsyncClient() as client:
+    timeout = Timeout(10.0, read=15.0, connect=30.0)
+    async with AsyncClient(timeout=timeout) as client:
         resp = await client.get(
             f"https://api.covalenthq.com/v1/{chain_id}/address/{treasury_address}/" +\
                 f"portfolio_v2/?&key=ckey_{getenv('COVALENT_KEY')}")
@@ -45,4 +46,4 @@ async def get_treasury(portfolio: Dict[str, Any]) -> Treasury:
         if item["holdings"][0]["close"]["quote"]
     ]
     
-    return Treasury(portfolio["address"], assets, windows, [])
+    return Treasury(portfolio["address"], assets, windows)
