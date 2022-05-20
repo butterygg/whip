@@ -3,7 +3,7 @@ from json.decoder import JSONDecodeError
 from time import sleep
 from typing import Tuple, Union
 
-from httpx import AsyncClient
+from httpx import AsyncClient, Timeout
 
 async def get_coin_list():
     async with AsyncClient() as client:
@@ -26,6 +26,7 @@ async def get_coin_hist_price(contract_address: str, symbol: str, start: Union[i
         start: datetime = end - timedelta(days=365 * start[0])
         start = mktime(start.timetuple())
         end = mktime(end.timetuple())
+    timeout = Timeout(read=15.0, connect=30.0)
     async with AsyncClient(
         headers={
             "user-agent":
@@ -38,14 +39,14 @@ async def get_coin_hist_price(contract_address: str, symbol: str, start: Union[i
         try:
             resp = await client.get(
                 f"https://api.coingecko.com/api/v3/coins/ethereum/contract/{contract_address}/market_chart/range?vs_currency=usd&from={start}&to={end}",
-                timeout=30.0
+                timeout=timeout
                 
             )
         except MaybeEncodingError as e:
             sleep(5)
             resp = await client.get(
                 f"https://api.coingecko.com/api/v3/coins/ethereum/contract/{contract_address}/market_chart/range?vs_currency=usd&from={start}&to={end}",
-                timeout=30.0
+                timeout=timeout
             )
         sleep(5)
         try:
