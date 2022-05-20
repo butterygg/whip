@@ -90,35 +90,6 @@ async def get_hist_prices_for_portfolio(symbol: str):
         index=indexes
     ).drop(["contract_metadata", "date"], axis=1)
 
-def get_hist_native_balances(wallet_address: str):
-    wallet_address = Web3.toChecksumAddress(wallet_address)
-    end = w3.eth.block_number
-    buffer = floor(end / 1000)
-    buffer = buffer if buffer >= 1 else 1
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        inputs = [
-            (wallet_address, block) for block in range(0, end + 1, buffer)
-        ]
-        balances = [
-            {ts: balance} for ts, balance
-            in zip(
-                executor.map(get_block_ts, [ block_num for block_num in range(0, end + 1, buffer) ], chunksize=5760),
-                executor.map(get_hist_eth_balance, inputs, chunksize=5760)
-            )
-            if balance > 0
-        ]
-
-        timestamps = []
-        balance_vals = []
-        for balance in balances:
-            timestamps.append(balance.keys()[0])
-            balance_vals.append(balance.values()[0])
-
-        return Series(
-            balance_vals,
-            index=timestamps
-        )
-
 async def populate_hist_tres_balance(asset_trans_history: Dict[str, Any]):
     if not asset_trans_history:
         return None
