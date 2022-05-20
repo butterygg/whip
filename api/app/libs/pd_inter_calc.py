@@ -4,7 +4,7 @@ from dateutil.tz import UTC
 
 from pandas import Index, Series
 
-def erc20_portfolio_filler(portfolio_balances: Series, quote_rates: Series) -> Series:
+def portfolio_filler(portfolio_balances: Series, quote_rates: Series) -> Series:
     filled_rows = []
     filled_dates = []
     rows = list(portfolio_balances.to_dict().items())
