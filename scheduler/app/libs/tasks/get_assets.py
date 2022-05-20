@@ -26,7 +26,7 @@ from . import (
 load_dotenv()
 
 async def clean_hist_prices(df: DF):
-    symbol = df.index[0][2]
+    symbol = df["symbol"][0]
     df = df.reset_index()
 
     """ `returns` calculation section
@@ -154,7 +154,7 @@ def load_treasury():
             portfolio = async_to_sync(get_treasury_portfolio)(treasury_meta["address"], treasury_meta.get("chain_id"))
 
             treasury = async_to_sync(get_treasury)(portfolio)
-            treasury_assets = DF(data=treasury.assets, index=[asset["token_symbol"] for asset in treasury.assets])
+            treasury_assets = DF(data=treasury.assets, index=[asset.token_symbol for asset in treasury.assets])
             treasury_assets.drop(["token_name", "token_symbol"], axis=1, inplace=True)
             treasury_assets.rename_axis("token_symbol", inplace=True)
 
@@ -227,7 +227,7 @@ def load_treasury():
                 if len(balances) >= 2:
                     contract_address = balances.index.get_level_values(1).to_list()
                     quote_rates = quote_rates.iloc[::-1]
-                    portfolio_performance = portfolio_filler(balances, quote_rates, contract_address[0])
+                    portfolio_performance = portfolio_filler(balances, quote_rates)
                     print(f"portfolio perf for {treasury.address[:6] + '_' + cleaned_df['symbol'][0]}: {portfolio_performance[-5:]}")
                     pipe.hset("balances", treasury.address[:6] + "_" + cleaned_df["symbol"][0], portfolio_performance.to_json(orient='records'))
                 pipe.hset("hist_prices", cleaned_df["symbol"][0], cleaned_df.to_json(orient='records'))
