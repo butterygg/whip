@@ -1,3 +1,4 @@
+from dateutil import parser
 from dataclasses import dataclass
 from datetime import datetime
 import os
@@ -41,7 +42,7 @@ async def get_eth_transactions(address: str) -> list[BitqueryTransfer]:
         resp.raise_for_status()
         return [
             BitqueryTransfer(
-                datetime.strptime(hist_item["timestamp"][:-6], "%Y-%m-%dT%H:%M:%S"),
+                parser.parse(hist_item["timestamp"]),
                 hist_item["transferAmount"],
                 hist_item["value"],
             )

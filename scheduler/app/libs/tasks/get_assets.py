@@ -6,7 +6,7 @@ from ujson import loads
 from .. import bitquery
 from ..storage_helpers import store_asset_hist_balance, retrieve_treasuries_metadata
 from . import db, sched
-from ..pd_inter_calc import portfolio_filler
+from ..pd_inter_calc import portfolio_midnight_filler
 from ..types import Treasury
 from .. import coingecko
 from .. import covalent
@@ -95,7 +95,9 @@ async def fill_asset_hist_balances(
         quote_rates = Series(data=augmented_token_hist_price["price"])
         quote_rates.index = to_datetime(augmented_token_hist_price["timestamp"])
         quote_rates = quote_rates.iloc[::-1]
-        return portfolio_filler(sparse_asset_hist_balances[symbol], quote_rates)
+        return portfolio_midnight_filler(
+            sparse_asset_hist_balances[symbol], quote_rates
+        )
 
     maybe_asset_hist_balance = {
         symbol: fill_asset_hist_balance(symbol, augmented_token_hist_price)
