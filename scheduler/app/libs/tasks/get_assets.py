@@ -1,34 +1,52 @@
-from concurrent.futures import ThreadPoolExecutor
-from dateutil import parser
-from math import log, floor
-from typing import Any, Dict, List, Tuple
-
 from asgiref.sync import async_to_sync
 from dotenv import load_dotenv
-from pandas import DataFrame as DF, MultiIndex, Series, to_datetime
+from pandas import DataFrame as DF, Series, to_datetime
 from ujson import loads
 
+from .. import bitquery
 from ..storage_helpers import store_asset_hist_balance, retrieve_treasuries_metadata
-
-from . import (
-    Treasury,
-    coingecko_hist_df,
-    get_coin_hist_price,
-    get_treasury,
-    get_treasury_portfolio,
-    get_token_transfers_for_wallet,
-    portfolio_filler,
-    db,
-    sched,
-    w3,
+from . import db, sched
+from ..pd_inter_calc import portfolio_filler
+from ..types import Treasury
+from .. import coingecko
+from .. import covalent
+from .treasury_ops import (
+    clean_hist_prices,
+    populate_bitquery_hist_eth_balance,
+    populate_hist_tres_balance,
 )
-from .treasury_ops import clean_hist_prices, populate_hist_tres_balance
 
 load_dotenv()
 
 
 async def make_treasury(treasury_address: str, chain_id: int) -> Treasury:
-    return await get_treasury(await get_treasury_portfolio(treasury_address, chain_id))
+    return await covalent.get_treasury(
+        await covalent.get_treasury_portfolio(treasury_address, chain_id)
+    )
+
+
+async def get_token_hist_prices(treasury: Treasury) -> dict[str, DF]:
+    maybe_hist_prices = {
+        asset.token_symbol: await coingecko.get_coin_hist_price(
+            asset.token_address, asset.token_symbol, (1, "years")
+        )
+        for asset in treasury.assets
+    }
+    hist_prices = {
+        symbol: mhp for symbol, mhp in maybe_hist_prices.items() if mhp is not None
+    }
+    return {
+        symbol: coingecko.coingecko_hist_df(addr, symbol, prices)
+        for symbol, (addr, symbol, prices) in hist_prices.items()
+        if prices
+    }
+
+
+async def augment_token_hist_prices(token_hist_prices: dict[str, DF]) -> dict[str, DF]:
+    return {
+        symbol: await clean_hist_prices(token_hist_price)
+        for symbol, token_hist_price in token_hist_prices.items()
+    }
 
 
 def filter_out_small_assets(treasury: Treasury):
@@ -45,7 +63,7 @@ async def get_sparse_asset_hist_balances(treasury: Treasury) -> dict[str, Series
         asset.token_symbol: asset.token_address for asset in treasury.assets
     }
     transfer_histories = {
-        symbol: await get_token_transfers_for_wallet(
+        symbol: await covalent.get_token_transfers_for_wallet(
             treasury.address, asset_contract_address
         )
         for symbol, asset_contract_address in asset_contract_addresses.items()
@@ -54,34 +72,13 @@ async def get_sparse_asset_hist_balances(treasury: Treasury) -> dict[str, Series
         symbol: await populate_hist_tres_balance(transfer_history)
         for symbol, transfer_history in transfer_histories.items()
     }
+    maybe_sparse_asset_hist_balances["ETH"] = populate_bitquery_hist_eth_balance(
+        await bitquery.get_eth_transactions(treasury.address)
+    )
     return {
         symbol: hist
         for symbol, hist in maybe_sparse_asset_hist_balances.items()
         if hist is not None and not hist.empty
-    }
-
-
-async def get_token_hist_prices(treasury: Treasury) -> dict[str, DF]:
-    maybe_hist_prices = {
-        asset.token_symbol: await get_coin_hist_price(
-            asset.token_address, asset.token_symbol, (1, "years")
-        )
-        for asset in treasury.assets
-    }
-    hist_prices = {
-        symbol: mhp for symbol, mhp in maybe_hist_prices.items() if mhp is not None
-    }
-    return {
-        symbol: coingecko_hist_df(addr, symbol, prices)
-        for symbol, (addr, symbol, prices) in hist_prices.items()
-        if prices
-    }
-
-
-async def augment_token_hist_prices(token_hist_prices: dict[str, DF]) -> dict[str, DF]:
-    return {
-        symbol: await clean_hist_prices(token_hist_price)
-        for symbol, token_hist_price in token_hist_prices.items()
     }
 
 
