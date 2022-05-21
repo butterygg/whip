@@ -3,6 +3,8 @@ name: Deploy to heroku.
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
 
 jobs:
   build:
