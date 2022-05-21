@@ -1,6 +1,6 @@
 from typing import Union
 import redis
-import ujson
+import json
 
 from . import db
 

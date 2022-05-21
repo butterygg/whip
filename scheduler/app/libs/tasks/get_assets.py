@@ -1,7 +1,6 @@
 from asgiref.sync import async_to_sync
 from dotenv import load_dotenv
 from pandas import DataFrame as DF, Series, to_datetime
-from ujson import loads
 
 from .. import bitquery
 from ..storage_helpers import store_asset_hist_balance, retrieve_treasuries_metadata
