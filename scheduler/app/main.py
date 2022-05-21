@@ -1,14 +1,15 @@
 import os
+import json
 
 from celery import Celery
 import redis
-from ujson import dumps
+
 
 db = redis.StrictRedis(host=os.environ["REDIS_HOST"], decode_responses=True)
 
 # add the uniswap treasury is not added already
-# db.lrem("treasuries", 1, dumps({"address": "0x1a9C8182C09F50C8318d769245beA52c32BE35BC", "chain_id": 1}))
-# db.rpush("treasuries", dumps({"address": "0x1a9C8182C09F50C8318d769245beA52c32BE35BC", "chain_id": 1}))
+# db.lrem("treasuries", 1, json.dumps({"address": "0x1a9C8182C09F50C8318d769245beA52c32BE35BC", "chain_id": 1}))
+# db.rpush("treasuries", json.dumps({"address": "0x1a9C8182C09F50C8318d769245beA52c32BE35BC", "chain_id": 1}))
 
 sched = Celery(
     "app",
