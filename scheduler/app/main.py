@@ -3,8 +3,6 @@ import os
 from celery import Celery
 import redis
 from ujson import dumps
-from web3 import Web3
-from web3.middleware import geth_poa_middleware
 
 db = redis.StrictRedis(host=os.environ["REDIS_HOST"], decode_responses=True)
 
@@ -18,9 +16,6 @@ sched = Celery(
 )
 
 sched.config_from_object("app.config.celeryconfig")
-
-w3 = Web3(Web3.HTTPProvider(os.environ["INFURA"]))
-w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
 if __name__ == "__main__":
     sched.start()
