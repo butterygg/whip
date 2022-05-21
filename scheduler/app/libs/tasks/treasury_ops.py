@@ -1,10 +1,8 @@
 from dateutil import parser
 from math import log
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
-from pandas import DataFrame as DF, MultiIndex, Series, to_datetime
-
-from . import get_historical_price_by_symbol
+from pandas import DataFrame as DF, MultiIndex, Series
 
 async def clean_hist_prices(df: DF):
     symbol = df["symbol"][0]
@@ -46,32 +44,8 @@ async def clean_hist_prices(df: DF):
 
     return df
 
-# [XXX] cache and run every day
-async def get_hist_prices_for_portfolio(symbol: str):
-    covalent_resp = await get_historical_price_by_symbol(
-        symbol,
-        (2, "years")
-    )
 
-    if not covalent_resp:
-        return
-
-    contract_address = covalent_resp["prices"][0]["contract_metadata"]["contract_address"]
-    decimals = covalent_resp["contract_decimals"]
-    indexes = MultiIndex.from_tuples(
-        [
-            (ts, contract_address, symbol, decimals) for ts
-            in [ to_datetime((price["date"]), utc=True) for price in covalent_resp["prices"] ]
-        ],
-        names=["timestamp", "address", "symbol", "decimals"]
-    )
-
-    return DF(
-        data=covalent_resp["prices"],
-        index=indexes
-    ).drop(["contract_metadata", "date"], axis=1)
-
-async def populate_hist_tres_balance(asset_trans_history: Dict[str, Any]):
+async def populate_hist_tres_balance(asset_trans_history: Dict[str, Any]) -> Optional[Series]:
     if not asset_trans_history:
         return None
     blocks = asset_trans_history["items"]
