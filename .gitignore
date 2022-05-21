@@ -1,4 +1,9 @@
-# env
+# files
+## made by celery
+*.dat
+*.bak
+*.dir
+## env files
 .env
 
 # dirs

@@ -4,7 +4,8 @@ services:
     image: redis
     networks:
       - whip_nw
-
+    ports:
+      - 6379:6379
   api:
     profiles: ["backend"]
     image: butter_whip/api:dev
@@ -18,12 +19,25 @@ services:
       - whip_nw
     depends_on:
       - redis
+      - sched
     env_file:
       - api/app.env
     volumes:
       - ./api/app/:/app/
     command: /start-reload.sh
-
+  sched:
+    profiles: ["backend"]
+    image: butter_whip/scheduler
+    build: ./scheduler
+    networks:
+      - whip_nw
+    depends_on:
+      - redis
+    env_file:
+      - scheduler/app.env
+    volumes:
+      - ./scheduler/app:/entrypoint/app/
+    command: "celery -A app.main worker --concurrency=1 -B -l INFO --logfile=/var/log/celery/%n%I.log"
   frontend:
     profiles: ["frontend"]
     image: butter_whip/frontend:dev
