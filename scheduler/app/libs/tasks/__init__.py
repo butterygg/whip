@@ -6,6 +6,6 @@ from ..covalent import (
     get_token_transfers_for_wallet,
     get_historical_price_by_symbol,
 )
-from ..pd_inter_calc import portfolio_filler
+from ..pd_inter_calc import portfolio_midnight_filler
 
 from ..types import Treasury
