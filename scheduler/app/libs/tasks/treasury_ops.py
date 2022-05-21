@@ -4,6 +4,8 @@ from typing import Any, Dict, List, Optional
 
 from pandas import DataFrame as DF, MultiIndex, Series
 
+from ..bitquery import BitqueryTransfer
+
 
 async def clean_hist_prices(df: DF):
     symbol = df["symbol"][0]
@@ -89,3 +91,19 @@ async def populate_hist_tres_balance(
 
     if len(balances) > 0:
         return balances
+
+
+def populate_bitquery_hist_eth_balance(eth_transfers: list[BitqueryTransfer]) -> Series:
+    index = MultiIndex.from_tuples(
+        [
+            (bt.timestamp, "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "ETH")
+            for bt in eth_transfers
+        ],
+        names=["timestamp", "contract_address", "contract_symbol"],
+    )
+    return Series(
+        (bt.value for bt in eth_transfers),
+        index=index,
+        name="treasury_balances",
+        dtype="float64",
+    )
