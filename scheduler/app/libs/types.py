@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List
 
+
 @dataclass
 class ERC20:
     token_name: str
@@ -9,10 +10,12 @@ class ERC20:
     token_address: str
     balance: float
 
+
 @dataclass
 class Quote:
     ts: datetime
     quote_rate: float
+
 
 @dataclass
 class HistoricalPrice:
@@ -20,6 +23,7 @@ class HistoricalPrice:
     token_name: str
     token_symbol: str
     quotes: List[Quote]
+
 
 @dataclass
 class Treasury:
@@ -30,6 +34,5 @@ class Treasury:
 
     def __post_init__(self):
         self.usd_total = sum(
-            asset.balance for asset in self.assets
-            if asset.balance is not None
+            asset.balance for asset in self.assets if asset.balance is not None
         )

@@ -8,13 +8,18 @@ from ..types import ERC20, Quote, Treasury, HistoricalPrice
 
 load_dotenv
 
-async def get_treasury_portfolio(treasury_address: str, chain_id: Optional[int] = 1) -> Dict[str, Any]:
+
+async def get_treasury_portfolio(
+    treasury_address: str, chain_id: Optional[int] = 1
+) -> Dict[str, Any]:
     async with AsyncClient() as client:
         resp = await client.get(
-            f"https://api.covalenthq.com/v1/{chain_id}/address/{treasury_address}/" +\
-                f"portfolio_v2/?&key=ckey_{getenv('COVALENT_KEY')}")
+            f"https://api.covalenthq.com/v1/{chain_id}/address/{treasury_address}/"
+            + f"portfolio_v2/?&key=ckey_{getenv('COVALENT_KEY')}"
+        )
 
         return resp.json()["data"]
+
 
 async def get_treasury(portfolio: Dict[str, Any]) -> Treasury:
 
@@ -26,12 +31,9 @@ async def get_treasury(portfolio: Dict[str, Any]) -> Treasury:
                 item["contract_name"],
                 item["contract_ticker_symbol"],
                 [
-                    Quote(
-                        parser.parse(holding["timestamp"]),
-                        holding["quote_rate"]
-                    )
+                    Quote(parser.parse(holding["timestamp"]), holding["quote_rate"])
                     for holding in item["holdings"]
-                ]
+                ],
             )
         )
 
@@ -44,7 +46,7 @@ async def get_treasury(portfolio: Dict[str, Any]) -> Treasury:
                 item["contract_name"],
                 item["contract_ticker_symbol"],
                 item["contract_address"],
-                item["holdings"][0]["close"]["quote"]
+                item["holdings"][0]["close"]["quote"],
             ).__dict__
         )
 

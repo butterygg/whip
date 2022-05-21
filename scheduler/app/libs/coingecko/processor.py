@@ -4,6 +4,7 @@ from typing import Any, Dict, List
 
 from pandas import DataFrame as DF, MultiIndex, to_datetime
 
+
 def coingecko_hist_df(contract_address: str, symbol: str, resp: List[List[int]]) -> DF:
     prices = []
     timestamps = []
@@ -16,10 +17,8 @@ def coingecko_hist_df(contract_address: str, symbol: str, resp: List[List[int]])
         )
 
     index = MultiIndex.from_tuples(
-        [
-            (ts, contract_address, symbol) for ts in timestamps
-        ],
-        names=["timestamp", "address", "symbol"]
+        [(ts, contract_address, symbol) for ts in timestamps],
+        names=["timestamp", "address", "symbol"],
     )
-    
+
     return DF(prices, index=index, columns=["price"]).reset_index()

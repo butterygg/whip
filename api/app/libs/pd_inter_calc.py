@@ -4,6 +4,7 @@ from dateutil.tz import UTC
 
 from pandas import Index, Series
 
+
 def portfolio_filler(portfolio_balances: Series, quote_rates: Series) -> Series:
     filled_rows = []
     filled_dates = []
@@ -28,7 +29,7 @@ def portfolio_filler(portfolio_balances: Series, quote_rates: Series) -> Series:
             prev_date += timedelta(days=1)
             sub_cnt = 0
             while prev_date < curr_date:
-                    
+
                 curr_quote = quote_rates.loc[prev_date.strftime("%Y-%m-%d")]
                 filled_rows.append(curr_balance * curr_quote)
                 filled_dates.append(prev_date)
@@ -37,4 +38,6 @@ def portfolio_filler(portfolio_balances: Series, quote_rates: Series) -> Series:
                 sub_cnt += 1
             break
 
-    return Series(filled_rows, index=Index(filled_dates, name="timestamp"), name="balance")        
+    return Series(
+        filled_rows, index=Index(filled_dates, name="timestamp"), name="balance"
+    )

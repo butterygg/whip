@@ -4,6 +4,7 @@ from dateutil.tz import UTC
 
 from pandas import DataFrame as DF, Index, Series
 
+
 def portfolio_filler(portfolio_balances: Series, quote_rates: Series) -> Series:
     def find_closest_quote(date: datetime):
         earlier_date = date
@@ -13,7 +14,7 @@ def portfolio_filler(portfolio_balances: Series, quote_rates: Series) -> Series:
             except KeyError:
                 earlier_date = earlier_date - timedelta(days=1)
                 continue
-    
+
     filled_rows = []
     filled_dates = []
     rows = list(portfolio_balances.to_dict().items())
@@ -40,7 +41,7 @@ def portfolio_filler(portfolio_balances: Series, quote_rates: Series) -> Series:
             prev_date: datetime = filled_dates[-1]
             prev_date += timedelta(days=1)
             while prev_date <= curr_date:
-                    
+
                 curr_quote = find_closest_quote(prev_date)
                 filled_rows.append(curr_balance * curr_quote)
                 filled_dates.append(prev_date)
@@ -48,4 +49,8 @@ def portfolio_filler(portfolio_balances: Series, quote_rates: Series) -> Series:
                 prev_date += timedelta(days=1)
             break
 
-    return DF([[ts, value] for ts, value in zip(filled_dates, filled_rows)], index=Index(filled_dates, name="timestamp"), columns=["timestamp", "balance"])        
+    return DF(
+        [[ts, value] for ts, value in zip(filled_dates, filled_rows)],
+        index=Index(filled_dates, name="timestamp"),
+        columns=["timestamp", "balance"],
+    )

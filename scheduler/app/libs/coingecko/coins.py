@@ -5,13 +5,22 @@ from typing import Tuple, Union
 
 from httpx import AsyncClient, Timeout
 
+
 async def get_coin_list():
     async with AsyncClient() as client:
-        resp = await client.get("https://api.coingecko.com/api/v3/coins/list?include_platform=true")
+        resp = await client.get(
+            "https://api.coingecko.com/api/v3/coins/list?include_platform=true"
+        )
 
         return resp.json()
 
-async def get_coin_hist_price(contract_address: str, symbol: str, start: Union[int, Tuple[int, str]], end: int = None):
+
+async def get_coin_hist_price(
+    contract_address: str,
+    symbol: str,
+    start: Union[int, Tuple[int, str]],
+    end: int = None,
+):
     if type(start) == tuple:
         from datetime import datetime
         from datetime import timedelta
@@ -29,8 +38,7 @@ async def get_coin_hist_price(contract_address: str, symbol: str, start: Union[i
     timeout = Timeout(10.0, read=15.0, connect=30.0)
     async with AsyncClient(
         headers={
-            "user-agent":
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36 Edg/100.0.1185.50"\
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36 Edg/100.0.1185.50"
         }
     ) as client:
         # replace ETH address to WETH
@@ -39,14 +47,13 @@ async def get_coin_hist_price(contract_address: str, symbol: str, start: Union[i
         try:
             resp = await client.get(
                 f"https://api.coingecko.com/api/v3/coins/ethereum/contract/{contract_address}/market_chart/range?vs_currency=usd&from={start}&to={end}",
-                timeout=timeout
-                
+                timeout=timeout,
             )
         except MaybeEncodingError as e:
             sleep(5)
             resp = await client.get(
                 f"https://api.coingecko.com/api/v3/coins/ethereum/contract/{contract_address}/market_chart/range?vs_currency=usd&from={start}&to={end}",
-                timeout=timeout
+                timeout=timeout,
             )
         sleep(5)
         try:

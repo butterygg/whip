@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional
 
 from pandas import DataFrame as DF, MultiIndex, Series
 
+
 async def clean_hist_prices(df: DF):
     symbol = df["symbol"][0]
     df = df.reset_index()
@@ -19,7 +20,9 @@ async def clean_hist_prices(df: DF):
             returns.append(log(df.loc[i - 1, "price"] / df.loc[i, "price"]))
         except Exception as e:
             print("misbehaving case: \n")
-            print(f"\tsymbol: {symbol}\n\tindex: {i}\n\tcurr_price: {df.loc[i - 1, 'price']}\n\tprev_price: {df.loc[i, 'price']}")
+            print(
+                f"\tsymbol: {symbol}\n\tindex: {i}\n\tcurr_price: {df.loc[i - 1, 'price']}\n\tprev_price: {df.loc[i, 'price']}"
+            )
             returns.append(None)
     returns.append(0)
     df["returns"] = returns
@@ -45,7 +48,9 @@ async def clean_hist_prices(df: DF):
     return df
 
 
-async def populate_hist_tres_balance(asset_trans_history: Dict[str, Any]) -> Optional[Series]:
+async def populate_hist_tres_balance(
+    asset_trans_history: Dict[str, Any]
+) -> Optional[Series]:
     if not asset_trans_history:
         return None
     blocks = asset_trans_history["items"]
@@ -67,28 +72,20 @@ async def populate_hist_tres_balance(asset_trans_history: Dict[str, Any]) -> Opt
                 continue
             delta = int(transfer["delta"])
             if transfer["transfer_type"] == "IN":
-                curr_balance += delta / 10 ** decimals if decimals > 0 else 1
+                curr_balance += delta / 10**decimals if decimals > 0 else 1
                 balances.append(curr_balance)
             else:
-                curr_balance -= delta / 10 ** decimals if decimals > 0 else 1
+                curr_balance -= delta / 10**decimals if decimals > 0 else 1
                 balances.append(curr_balance)
 
             timeseries.append(parser.parse(transfer["block_signed_at"]))
 
     index = MultiIndex.from_tuples(
-        [
-            (ts, address, symbol)
-            for ts in timeseries
-        ],
-        names=["timestamp", "contract_address", "contract_symbol"] 
+        [(ts, address, symbol) for ts in timeseries],
+        names=["timestamp", "contract_address", "contract_symbol"],
     )
 
-    balances = Series(
-        balances,
-        index=index,
-        name="treasury_balances",
-        dtype="float64"
-    )
+    balances = Series(balances, index=index, name="treasury_balances", dtype="float64")
 
     if len(balances) > 0:
         return balances

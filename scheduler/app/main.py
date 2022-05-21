@@ -13,7 +13,7 @@ db = redis.StrictRedis(host=os.environ["REDIS_HOST"], decode_responses=True)
 # db.rpush("treasuries", dumps({"address": "0x1a9C8182C09F50C8318d769245beA52c32BE35BC", "chain_id": 1}))
 
 sched = Celery(
-    'app',
+    "app",
     include=["app.libs.tasks"],
 )
 
@@ -24,4 +24,3 @@ w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
 if __name__ == "__main__":
     sched.start()
-
