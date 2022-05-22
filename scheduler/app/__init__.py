@@ -1,10 +1,10 @@
 import os
+
 import redis
 
-
 if "REDIS_TLS_URL" in os.environ:
-    db = redis.StrictRedis.from_url(os.environ["REDIS_TLS_URL"])
+    db = redis.Redis.from_url(os.environ["REDIS_TLS_URL"], ssl_cert_reqs=None)
 elif "REDIS_URL" in os.environ:
-    db = redis.StrictRedis.from_url(os.environ["REDIS_URL"])
+    db = redis.Redis.from_url(os.environ["REDIS_URL"])
 else:
-    db = redis.StrictRedis(host="redis")
+    db = redis.Redis(host="redis")
