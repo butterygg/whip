@@ -352,7 +352,7 @@ function KpisDisplay({
           }
         >
           {typeof kpis["total value"] !== "undefined" &&
-            (kpis["total value"] / 1_000_000).toFixed(0) + "  m$"}
+            "$" + (kpis["total value"] / 1_000_000).toFixed(0) + "m"}
         </p>
         <p>Total Value</p>
       </div>{" "}
