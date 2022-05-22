@@ -68,10 +68,10 @@ function deltaDate(input: Date, years: number, months: number, days: number) {
 }
 
 function App() {
+  const today = getTodayMidnight();
+
   const [address, setAddress] = useState("");
-  const [startDate, setStartDate] = useState(
-    deltaDate(getTodayMidnight(), -1, 0, 0)
-  );
+  const [startDate, setStartDate] = useState(deltaDate(today, -1, 0, 0));
   const [baseKpis, setBaseKpis] = useState({
     "total value": undefined,
     volatility: undefined,
@@ -120,6 +120,30 @@ function App() {
     },
   ];
 
+  // Change URL
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (address.length > 0)
+        window.history.pushState(
+          `Whip ${address.slice(0, 6)}`,
+          `Whip ${address.slice(0, 6)}`,
+          `${window.location.href.split("?")[0]}?${new URLSearchParams({
+            address,
+          }).toString()}`
+        );
+      else {
+        const queryString = window.location.href.split("?")[1];
+        if (queryString) {
+          const params = new URLSearchParams(queryString);
+          if (params.has("address")) {
+            const param = params.get("address");
+            if (typeof param === "string") setAddress(param);
+          }
+        }
+      }
+    }
+  }, [address, setAddress]);
+
   useEffect(() => {
     (async () => {
       if (!address) return;
@@ -147,7 +171,7 @@ function App() {
         ],
       });
     })();
-  }, [address]);
+  }, [address, startDate]);
 
   const dummyAddSpreadAsset = () => {
     setNewKpis({
@@ -212,22 +236,62 @@ function App() {
       </header>
       <div className="flex items-center justify-center">
         <div className="bg-[#eee] w-2/3 m-10">
-          <div className="w-full bg-[#ddd] p-4 text-white  flex items-center justify-center">
-            <Line
-              data={chartData}
-              options={{
-                responsive: true,
-                plugins: {
-                  legend: {
-                    position: "top" as const,
+          <div className="w-full bg-[#ddd] p-4 text-white  ">
+            <div className="flex items-center justify-center">
+              <Line
+                data={chartData}
+                options={{
+                  responsive: true,
+                  plugins: {
+                    legend: {
+                      position: "top" as const,
+                    },
+                    title: {
+                      display: true,
+                      text: "Treasury holdings",
+                    },
                   },
-                  title: {
-                    display: true,
-                    text: "Treasury holdings",
-                  },
-                },
-              }}
-            />
+                }}
+              />
+            </div>
+            <div className="m-4 space-x-0.5 flex items-center justify-center text-gray-700 text-xs">
+              <div
+                className={`hover:cursor-pointer p-2 ${
+                  startDate.getTime() === deltaDate(today, -1, 0, 0).getTime()
+                    ? "bg-[#d5af08b8] font-semibold"
+                    : "bg-white"
+                }`}
+                onClick={(el) => {
+                  setStartDate(deltaDate(today, -1, 0, 0));
+                }}
+              >
+                1 year
+              </div>
+              <div
+                className={`hover:cursor-pointer p-2 ${
+                  startDate.getTime() === deltaDate(today, 0, -3, 0).getTime()
+                    ? "bg-[#d5af08b8] font-semibold"
+                    : "bg-white"
+                }`}
+                onClick={() => {
+                  setStartDate(deltaDate(today, 0, -3, 0));
+                }}
+              >
+                3 months
+              </div>
+              <div
+                className={`hover:cursor-pointer p-2 ${
+                  startDate.getTime() === deltaDate(today, 0, -1, 0).getTime()
+                    ? "bg-[#d5af08b8] font-semibold"
+                    : "bg-white"
+                }`}
+                onClick={() => {
+                  setStartDate(deltaDate(today, 0, -1, 0));
+                }}
+              >
+                1 month
+              </div>
+            </div>
           </div>
           <div className="p-10">
             <KpisDisplay newKpis={newKpis} baseKpis={baseKpis} />

@@ -21,25 +21,28 @@ async def portfolio(address: str, start=str):
         augmented_total_balance,
     ) = await get_assets.build_treasury_with_assets(address, 1)
 
+    histprices = {
+        symbol: athp.set_index("timestamp").loc[start:end]
+        for symbol, athp in augmented_token_hist_prices.items()
+    }
+    totalbalance = augmented_total_balance.loc[start:end]
+
     assets = {
         a.token_symbol: {
             "allocation": a.balance / treasury.usd_total,
-            "volatility": augmented_token_hist_prices[a.token_symbol]["std_dev"].mean(),
+            "volatility": histprices[a.token_symbol]["std_dev"].mean(),
             "riskContribution": 0.123,
         }
         for a in treasury.assets
     }
 
-    if (start not in augmented_total_balance.index) or (
-        augmented_total_balance.loc[start].balance == 0
-    ):
+    if (start not in totalbalance.index) or (totalbalance.loc[start].balance == 0):
         market_return = "Infinity"
     else:
-        eth_series = augmented_token_hist_prices["ETH"].set_index("timestamp")
+        eth_series = histprices["ETH"]
         market_return = (
-            augmented_total_balance.loc[end].balance
-            - augmented_total_balance.loc[start].balance
-        ) / augmented_total_balance.loc[start].balance - (
+            totalbalance.loc[end].balance - totalbalance.loc[start].balance
+        ) / totalbalance.loc[start].balance - (
             eth_series.loc[end].price - eth_series.loc[start].price
         ) / eth_series.loc[
             start
@@ -47,13 +50,13 @@ async def portfolio(address: str, start=str):
 
     kpis = {
         "total value": treasury.usd_total,
-        "volatility": augmented_total_balance.std_dev.mean(),
+        "volatility": totalbalance.std_dev.mean(),
         "return vs market": market_return,
     }
 
     data = {
         timestamp.to_pydatetime().strftime("%Y-%m-%d"): balance
-        for timestamp, balance in augmented_total_balance.to_dict()["balance"].items()
+        for timestamp, balance in totalbalance.to_dict()["balance"].items()
     }
 
     return {"assets": assets, "kpis": kpis, "data": data}
