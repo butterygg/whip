@@ -4,8 +4,8 @@
 *.bak
 *.dir
 ## env files
-.env
-
+**/.env
+**/app.env
 # dirs
 .venv
 __pycache__

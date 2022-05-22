@@ -10,7 +10,7 @@ CHAIN_ID = 1
 
 def store_treasury_metadata(address: str):
     stored_addresses = [
-        ujson.loads(t)["address"] for t in db.lrange("treasuries", 0, -1)
+        json.loads(t)["address"] for t in db.lrange("treasuries", 0, -1)
     ]
     if address in stored_addresses:
         return
@@ -18,7 +18,7 @@ def store_treasury_metadata(address: str):
 
 
 def retrieve_treasuries_metadata() -> list[tuple[str, int]]:
-    treasuries_meta = [ujson.loads(t) for t in db.lrange("treasuries", 0, -1)]
+    treasuries_meta = [json.loads(t) for t in db.lrange("treasuries", 0, -1)]
     return [(tm["address"], tm.get("chain_id", CHAIN_ID)) for tm in treasuries_meta]
 
 

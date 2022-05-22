@@ -97,9 +97,12 @@ function App() {
 
   useEffect(() => {
     (async () => {
-      const resp = await fetch("/api/testapi");
+      if (!address) return;
+      const resp = await fetch(`/api/portfolio/${address}`);
       if (!resp.ok)
-        throw new Error(`testapi fetch failed with status: ${resp.statusText}`);
+        throw new Error(
+          `Portfolio fetch failed with status: ${resp.statusText}`
+        );
       const assets = await resp.json();
 
       const kpis = {
@@ -123,7 +126,7 @@ function App() {
         ],
       });
     })();
-  }, []);
+  }, [address]);
 
   const dummyAddSpreadAsset = () => {
     setNewKpis({

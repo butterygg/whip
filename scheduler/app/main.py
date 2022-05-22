@@ -1,22 +1,24 @@
-import os
-import json
+from fastapi import FastAPI
 
-from celery import Celery
-import redis
+from .libs.tasks import get_assets
 
 
-db = redis.StrictRedis(host=os.environ["REDIS_HOST"], decode_responses=True)
+app = FastAPI()
 
-# add the uniswap treasury is not added already
-# db.lrem("treasuries", 1, json.dumps({"address": "0x1a9C8182C09F50C8318d769245beA52c32BE35BC", "chain_id": 1}))
-# db.rpush("treasuries", json.dumps({"address": "0x1a9C8182C09F50C8318d769245beA52c32BE35BC", "chain_id": 1}))
 
-sched = Celery(
-    "app",
-    include=["app.libs.tasks"],
-)
+@app.get("/portfolio/{address}")
+async def portfolio(address: str):
+    return {}
 
-sched.config_from_object("app.config.celeryconfig")
-
-if __name__ == "__main__":
-    sched.start()
+    # assets = {
+    #     "UNI": {
+    #         "allocation": 0.95,
+    #         "volatility": 0.7,
+    #         "riskContribution": 0.99,
+    #     },
+    #     "DAI": {
+    #         "allocation": 0.05,
+    #         "volatility": 0.01,
+    #         "riskContribution": 0.01,
+    #     },
+    # }

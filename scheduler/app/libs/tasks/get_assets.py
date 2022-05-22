@@ -1,10 +1,11 @@
+from itertools import chain
 from asgiref.sync import async_to_sync
 from dotenv import load_dotenv
 from pandas import DataFrame as DF, Series, to_datetime
 
 from .. import bitquery
 from ..storage_helpers import store_asset_hist_balance, retrieve_treasuries_metadata
-from . import db, sched
+from . import db, celery_app
 from ..pd_inter_calc import portfolio_midnight_filler
 from ..types import Treasury
 from .. import coingecko
@@ -122,14 +123,14 @@ async def build_treasury_with_assets(
     return treasury, augmented_token_hist_prices, asset_hist_balances
 
 
-@sched.on_after_finalize.connect
+@celery_app.on_after_finalize.connect
 def setup_periodic_tasks(sender, **kwargs):
     sender.add_periodic_task(
         30.0, reload_treasuries_data.s(), name="reload treasuries data"
     )
 
 
-@sched.task
+@celery_app.task
 def reload_treasuries_data():
     for treasury_metadata in retrieve_treasuries_metadata():
         with db.pipeline() as pipe:

@@ -5,8 +5,6 @@ import os
 from httpx import AsyncClient
 
 
-import requests
-
 BITQUERY_API_KEY = os.environ["BITQUERY_API_KEY"]
 ETH_QUERY_TEMPLATE = """
 query{

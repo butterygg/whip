@@ -1,19 +1,15 @@
-FROM python:3.9.7-buster
+ARG TAG=python3.9-slim
+
+FROM tiangolo/uvicorn-gunicorn-fastapi:$TAG
 
 RUN mkdir -p /var/run/celery
 RUN mkdir -p /var/log/celery
-RUN mkdir -p /entrypoint/app
-
-WORKDIR /entrypoint
+RUN mkdir -p /app/
 
 COPY requirements.txt /app/
 
 RUN pip install -r /app/requirements.txt
 
-COPY ./app /app
+COPY ./app /app/app
 
-RUN python -c "import app"
-
-RUN touch __init__.py
-
-# CMD [ "celery", "-A", "celery", "worker", "-l", "DEBUG", "--pidfile=", "--logfile=/var/log/celery/%n%I.log" ]
+WORKDIR /app
