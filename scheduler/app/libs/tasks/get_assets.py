@@ -8,7 +8,7 @@ from .. import bitquery
 from ..storage_helpers import store_asset_hist_balance, retrieve_treasuries_metadata
 from . import db, celery_app
 from ..pd_inter_calc import portfolio_midnight_filler
-from ..types import Treasury
+from ..types import ERC20, Treasury
 from .. import coingecko
 from .. import covalent
 from .treasury_ops import (
@@ -27,11 +27,14 @@ async def make_treasury(treasury_address: str, chain_id: int) -> Treasury:
 
 
 async def get_token_hist_prices(treasury: Treasury) -> dict[str, DF]:
+    asset_addresses_including_ETH = {
+        (a.token_symbol, a.token_address) for a in treasury.assets
+    } | {("ETH", "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")}
     maybe_hist_prices = {
-        asset.token_symbol: await coingecko.get_coin_hist_price(
-            asset.token_address, asset.token_symbol, (1, "years")
+        token_symbol: await coingecko.get_coin_hist_price(
+            token_address, token_symbol, (1, "years")
         )
-        for asset in treasury.assets
+        for token_symbol, token_address in asset_addresses_including_ETH
     }
     hist_prices = {
         symbol: mhp for symbol, mhp in maybe_hist_prices.items() if mhp is not None

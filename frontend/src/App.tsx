@@ -42,7 +42,7 @@ type AssetsBreakdown = Record<
 type Kpis = {
   "total value"?: number;
   volatility?: number;
-  "return vs market"?: number;
+  "return vs market"?: number | "Infinity";
 };
 
 const getTodayMidnight = () => {
@@ -312,9 +312,11 @@ function KpisDisplay({
           }
         >
           {typeof kpis["return vs market"] !== "undefined" &&
-            (kpis["return vs market"] * 100).toFixed(0) + "%"}
+            (kpis["return vs market"] === "Infinity"
+              ? "∞"
+              : ((kpis["return vs market"] as number) * 100).toFixed(0) + "%")}
         </p>
-        <p>Return vs Market</p>
+        <p>Return vs ETH</p>
       </div>
     </div>
   );

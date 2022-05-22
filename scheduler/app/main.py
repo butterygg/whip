@@ -12,6 +12,8 @@ app = FastAPI()
 @app.get("/portfolio/{address}/{start}")
 async def portfolio(address: str, start=str):
     start_date = dateutil.parser.parse(start).replace(tzinfo=UTC)
+    end_date = dateutil.utils.today(UTC) - datetime.timedelta(days=1)
+    end = end_date.strftime("%Y-%m-%d")
     (
         treasury,
         augmented_token_hist_prices,
@@ -27,10 +29,26 @@ async def portfolio(address: str, start=str):
         }
         for a in treasury.assets
     }
+
+    if (start not in augmented_total_balance.index) or (
+        augmented_total_balance.loc[start].balance == 0
+    ):
+        market_return = "Infinity"
+    else:
+        eth_series = augmented_token_hist_prices["ETH"].set_index("timestamp")
+        market_return = (
+            augmented_total_balance.loc[end].balance
+            - augmented_total_balance.loc[start].balance
+        ) / augmented_total_balance.loc[start].balance - (
+            eth_series.loc[end].price - eth_series.loc[start].price
+        ) / eth_series.loc[
+            start
+        ].price
+
     kpis = {
         "total value": treasury.usd_total,
-        "volatility": augmented_total_balance["std_dev"].mean(),
-        "return vs market": 0.1,
+        "volatility": augmented_total_balance.std_dev.mean(),
+        "return vs market": market_return,
     }
 
     data = {
