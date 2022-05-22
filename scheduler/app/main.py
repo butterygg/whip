@@ -29,13 +29,13 @@ async def portfolio(address: str, start=str):
     }
     kpis = {
         "total value": treasury.usd_total,
-        "volatility": 0.1,
+        "volatility": augmented_total_balance["std_dev"].mean(),
         "return vs market": 0.1,
     }
 
     data = {
         timestamp.to_pydatetime().strftime("%Y-%m-%d"): balance
-        for timestamp, balance in augmented_total_balance.to_dict().items()
+        for timestamp, balance in augmented_total_balance.to_dict()["balance"].items()
     }
 
     return {"assets": assets, "kpis": kpis, "data": data}

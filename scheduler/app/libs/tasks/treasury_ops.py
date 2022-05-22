@@ -7,8 +7,12 @@ from pandas import DataFrame as DF, MultiIndex, Series
 from ..bitquery import BitqueryTransfer
 
 
-async def clean_hist_prices(df: DF):
-    symbol = df["symbol"][0]
+def add_statistics(
+    df: DF,
+    column_name: str = "price",
+    reverse: bool = True,
+    index: Optional[str] = None,
+):
     df = df.reset_index()
 
     """ `returns` calculation section
@@ -17,15 +21,8 @@ async def clean_hist_prices(df: DF):
     """
     returns = []
     for i in range(1, len(df)):
-        try:
-            # current price is df[i - 1] since `loc` descends the DF
-            returns.append(log(df.loc[i - 1, "price"] / df.loc[i, "price"]))
-        except Exception as e:
-            print("misbehaving case: \n")
-            print(
-                f"\tsymbol: {symbol}\n\tindex: {i}\n\tcurr_price: {df.loc[i - 1, 'price']}\n\tprev_price: {df.loc[i, 'price']}"
-            )
-            returns.append(None)
+        # current price is df[i - 1] since `loc` descends the DF
+        returns.append(log(df.loc[i - 1, column_name] / df.loc[i, column_name]))
     returns.append(0)
     df["returns"] = returns
 
@@ -45,7 +42,11 @@ async def clean_hist_prices(df: DF):
     """ end section
     """
 
-    df = df.iloc[::-1]
+    if index is not None:
+        df = df.set_index(index)
+
+    if reverse:
+        return df.iloc[::-1]
 
     return df
 

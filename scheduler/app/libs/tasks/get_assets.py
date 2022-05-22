@@ -12,7 +12,7 @@ from ..types import Treasury
 from .. import coingecko
 from .. import covalent
 from .treasury_ops import (
-    clean_hist_prices,
+    add_statistics,
     populate_bitquery_hist_eth_balance,
     populate_hist_tres_balance,
 )
@@ -43,9 +43,9 @@ async def get_token_hist_prices(treasury: Treasury) -> dict[str, DF]:
     }
 
 
-async def augment_token_hist_prices(token_hist_prices: dict[str, DF]) -> dict[str, DF]:
+def augment_token_hist_prices(token_hist_prices: dict[str, DF]) -> dict[str, DF]:
     return {
-        symbol: await clean_hist_prices(token_hist_price)
+        symbol: add_statistics(token_hist_price)
         for symbol, token_hist_price in token_hist_prices.items()
     }
 
@@ -114,9 +114,12 @@ async def fill_asset_hist_balances(
 def augment_total_balance(
     treasury: Treasury, asset_hist_balances: dict[str, DF]
 ) -> Series:
-    return reduce(
+    total_balance = reduce(
         lambda acc, item: acc.add(item, fill_value=0),
         (balance["balance"] for balance in asset_hist_balances.values()),
+    )
+    return add_statistics(
+        total_balance, column_name="balance", reverse=False, index="timestamp"
     )
 
 
@@ -124,7 +127,7 @@ async def build_treasury_with_assets(
     treasury_address: str, chain_id: int
 ) -> tuple[Treasury, dict[str, DF], dict[str, DF]]:
     treasury = filter_out_small_assets(await make_treasury(treasury_address, chain_id))
-    augmented_token_hist_prices = await augment_token_hist_prices(
+    augmented_token_hist_prices = augment_token_hist_prices(
         await get_token_hist_prices(treasury)
     )
     asset_hist_balances = await fill_asset_hist_balances(
