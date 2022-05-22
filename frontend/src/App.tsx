@@ -88,6 +88,7 @@ function App() {
     datasets: [],
   } as ChartData<"line">);
   const [openedProduct, setOpenedProduct] = useState<undefined | number>();
+  const [activeProduct, setActiveProduct] = useState<undefined | number>();
 
   const products = [
     {
@@ -120,7 +121,7 @@ function App() {
     },
   ];
 
-  // Change URL
+  // Change the URL
   useEffect(() => {
     if (typeof window !== "undefined") {
       if (address.length > 0)
@@ -144,6 +145,7 @@ function App() {
     }
   }, [address, setAddress]);
 
+  // Fetch main endpoint
   useEffect(() => {
     (async () => {
       if (!address) return;
@@ -173,42 +175,87 @@ function App() {
     })();
   }, [address, startDate]);
 
-  const dummyAddSpreadAsset = () => {
-    setNewKpis({
-      "total value": 120_000_000,
-      volatility: 0.1,
-      "return vs market": 0.01,
-    });
-    setNewAssets({
-      UNI: {
-        allocation: 0.8,
-        volatility: 0.7,
-        riskContribution: 0.95,
-      },
-      DAI: {
-        allocation: 0.01,
-        volatility: 0.01,
-        riskContribution: 0.01,
-      },
-      USDC: {
-        allocation: 0.19,
-        volatility: 0.01,
-        riskContribution: 0.04,
-      },
-    });
-    setChartData({
-      labels: chartData.labels,
-      datasets: [
-        chartData.datasets[0],
-        {
-          label: "Diversified portfolio",
-          backgroundColor: "rgb(213, 175, 8)",
-          borderColor: "rgb(213, 175, 8)",
-          data: [42, 44, 42, 42, 39, 32],
+  // Fetch product endpoint
+  useEffect(() => {
+    (async () => {
+      if (typeof activeProduct === "undefined") return;
+      setNewKpis({
+        "total value": 1_548_000_000,
+        volatility: 0.03,
+        "return vs market": 0.24,
+      });
+      setNewAssets({
+        BIT: {
+          allocation: 0.36,
+          volatility: 0.03,
+          riskContribution: 0.501,
         },
-      ],
-    });
-  };
+        ETH: {
+          allocation: 0.208,
+          volatility: 0.035,
+          riskContribution: 0.03,
+        },
+        USDT: {
+          allocation: 0.088,
+          volatility: 0.001,
+          riskContribution: -0.0002,
+        },
+        USDC: {
+          allocation: 0.31,
+          volatility: 0.001,
+          riskContribution: -0.0006,
+        },
+        "FTX Token": {
+          allocation: 0.056,
+          volatility: 0.035,
+          riskContribution: 0.0624,
+        },
+      });
+      setChartData({
+        labels: chartData.labels,
+        datasets: [
+          chartData.datasets[0],
+          {
+            label: "Diversified portfolio",
+            backgroundColor: "rgb(213, 175, 8)",
+            borderColor: "rgb(213, 175, 8)",
+            data: [
+              452.6941098934827, 463.6397946467189, 455.5047562496766,
+              456.36132148727495, 483.6656955092756, 484.9533924145435,
+              460.89433491398825, 506.5431325131194, 514.5971520018533,
+              510.59052975170994, 493.67231660521475, 459.3410708848855,
+              467.5244544923157, 449.68820642502055, 440.3114325391505,
+              452.84914505971454, 476.8506904269969, 458.32496670414196,
+              450.56138112322526, 453.64571630065296, 443.64083710832807,
+              455.08609547672586, 459.8235841115545, 483.67633563662196,
+              491.36522529599995, 561.65707676286, 562.5500700221238,
+              548.1715154589527, 553.968306353087, 566.4439394541043,
+              574.8829178365849, 590.3442684709377, 588.665408376322,
+              594.4673428696434, 619.0416780102829, 629.0867835055795,
+              637.2925831732117, 635.7998699349092, 619.4509168253362,
+              645.2833166761053, 646.335970922155, 659.610535646079,
+              659.8338889711418, 643.3127676075294, 601.59393040814,
+              611.9309690628705, 602.8483128737323, 616.0325328932566,
+              608.1703957494192, 569.2429110552254, 576.3080849549804,
+              592.2335176250816, 574.9351234575005, 577.8347491447983,
+              583.4674918476527, 570.4244312699586, 581.9615365931364,
+              650.8565078069246, 647.2260350186024, 629.7402284805164,
+              626.1167682137842, 621.2110373014021, 619.5665201890761,
+              634.9260825013306, 597.368114331222, 612.7894662021478,
+              620.6682448465982, 600.1960986501654, 585.5681134260443,
+              602.9792026757395, 602.8648287660592, 588.8366996603888,
+              616.0351931156639, 582.077991061278, 554.0168172544792,
+              545.2671576806856, 524.9222834778254, 477.53929054443535,
+              494.33879488567453, 445.27854202237546, 428.812263974043,
+              436.8322357258108, 445.9312017592745, 460.1010014105559,
+              439.77063661518514, 452.49722622307354, 420.8209018193212,
+              471.75261120821017, 462.06552357328076,
+            ],
+          },
+        ],
+      });
+    })();
+  }, [activeProduct]);
 
   const resetAssets = () => {
     setNewKpis(undefined);
@@ -322,7 +369,7 @@ function App() {
                   opened={true}
                   {...props}
                   toggle={() => setOpenedProduct(undefined)}
-                  updatePreview={() => dummyAddSpreadAsset()}
+                  updatePreview={() => setActiveProduct(index)}
                   resetPreview={() => resetAssets()}
                 />
               )
