@@ -9,25 +9,28 @@ from .libs.tasks import get_assets
 app = FastAPI()
 
 
-@app.get("/portfolio/{address}")
-async def portfolio(address: str):
+@app.get("/portfolio/{address}/{start}/{end}")
+async def portfolio(address: str, start=str, end=str):
+    start_date = dateutil.parser.parse(start).replace(tzinfo=UTC)
+    end_date = dateutil.parser.parse(end).replace(tzinfo=UTC)
     (
         treasury,
         augmented_token_hist_prices,
         asset_hist_balances,
     ) = await get_assets.build_treasury_with_assets(address, 1)
+
     assets = {
         a.token_symbol: {
             "allocation": a.balance / treasury.usd_total,
-            "volatility": 0.123,
+            "volatility": augmented_token_hist_prices[a.token_symbol]["std_dev"].mean(),
             "riskContribution": 0.123,
         }
         for a in treasury.assets
     }
     kpis = {
         "total value": treasury.usd_total,
-        "volatility": "enormous",
-        "return vs market": "?",
+        "volatility": 0.1,
+        "return vs market": 0.1,
     }
 
     def get_balance_or_0(df, key):

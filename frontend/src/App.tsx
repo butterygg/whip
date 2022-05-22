@@ -40,13 +40,39 @@ type AssetsBreakdown = Record<
   }
 >;
 type Kpis = {
-  "total value"?: string;
-  volatility?: string;
-  "return vs market"?: string;
+  "total value"?: number;
+  volatility?: number;
+  "return vs market"?: number;
 };
+
+const getTodayMidnight = () => {
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  return today;
+};
+
+// https://stackoverflow.com/a/54452875/931156
+function deltaDate(input: Date, years: number, months: number, days: number) {
+  return new Date(
+    input.getFullYear() + years,
+    input.getMonth() + months,
+    Math.min(
+      input.getDate() + days,
+      new Date(
+        input.getFullYear() + years,
+        input.getMonth() + months + 1,
+        0
+      ).getDate()
+    )
+  );
+}
 
 function App() {
   const [address, setAddress] = useState("");
+  const [startDate, setStartDate] = useState(
+    deltaDate(getTodayMidnight(), -1, 0, 0)
+  );
+  const [endDate, setEndDate] = useState(getTodayMidnight());
   const [baseKpis, setBaseKpis] = useState({
     "total value": undefined,
     volatility: undefined,
@@ -98,7 +124,11 @@ function App() {
   useEffect(() => {
     (async () => {
       if (!address) return;
-      const resp = await fetch(`/api/portfolio/${address}`);
+      const resp = await fetch(
+        `/api/portfolio/${address}/${startDate
+          .toISOString()
+          .slice(0, 10)}/${endDate.toISOString().slice(0, 10)}`
+      );
       if (!resp.ok)
         throw new Error(
           `Portfolio fetch failed with status: ${resp.statusText}`
@@ -124,9 +154,9 @@ function App() {
 
   const dummyAddSpreadAsset = () => {
     setNewKpis({
-      "total value": "$120m",
-      volatility: "low",
-      "return vs market": "1%",
+      "total value": 120_000_000,
+      volatility: 0.1,
+      "return vs market": 0.01,
     });
     setNewAssets({
       UNI: {
@@ -252,23 +282,43 @@ function KpisDisplay({
 }) {
   const kpis = newKpis || baseKpis;
   return (
-    <div className="mb-10 capitalize flex justify-between items-center">
-      {Object.entries(kpis).map(([type, value]) => (
-        <div
-          key={type}
-          className="bg-[#ddd] w-40 pb-4 pt-4 pl-6 pr-6 text-center"
+    <div className="mb-10 flex justify-between items-center">
+      <div className="bg-[#ddd] w-40 pb-4 pt-4 pl-6 pr-6 text-center">
+        <p
+          className={
+            (newKpis === undefined ? "" : "text-[#D5AF08] ") +
+            "text-2xl font-bold"
+          }
         >
-          <p
-            className={
-              (newKpis === undefined ? "" : "text-[#D5AF08] ") +
-              "text-3xl font-bold"
-            }
-          >
-            {value}
-          </p>
-          <p className="text-sm">{type}</p>
-        </div>
-      ))}
+          {typeof kpis["total value"] !== "undefined" &&
+            (kpis["total value"] / 1_000_000).toFixed(0) + "  m$"}
+        </p>
+        <p>Total Value</p>
+      </div>{" "}
+      <div className="bg-[#ddd] w-40 pb-4 pt-4 pl-6 pr-6 text-center">
+        <p
+          className={
+            (newKpis === undefined ? "" : "text-[#D5AF08] ") +
+            "text-2xl font-bold"
+          }
+        >
+          {typeof kpis.volatility !== "undefined" &&
+            (kpis.volatility * 100).toFixed(0) + "%"}
+        </p>
+        <p>Volatility</p>
+      </div>
+      <div className="bg-[#ddd] w-40 pb-4 pt-4 pl-6 pr-6 text-center">
+        <p
+          className={
+            (newKpis === undefined ? "" : "text-[#D5AF08] ") +
+            "text-2xl font-bold"
+          }
+        >
+          {typeof kpis["return vs market"] !== "undefined" &&
+            (kpis["return vs market"] * 100).toFixed(0) + "%"}
+        </p>
+        <p>Return vs Market</p>
+      </div>
     </div>
   );
 }
@@ -314,8 +364,8 @@ function AssetsDisplay({
                 </span>
                 {assetName}
               </td>
-              <td className="p-2">{`${allocation * 100}%`}</td>
-              <td className="p-2">{`${volatility}`}</td>
+              <td className="p-2">{`${(allocation * 100).toFixed(0)}%`}</td>
+              <td className="p-2">{`${(volatility * 100).toFixed(1)}%`}</td>
               <td className="p-2">{`${riskContribution * 100}%`}</td>
             </tr>
           )
