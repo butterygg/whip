@@ -128,7 +128,7 @@ def augment_total_balance(
 
 
 async def build_treasury_with_assets(
-    treasury_address: str, chain_id: int
+    treasury_address: str, chain_id: int, start: str, end: str
 ) -> tuple[Treasury, dict[str, DF], dict[str, DF]]:
     treasury = filter_out_small_assets(await make_treasury(treasury_address, chain_id))
     augmented_token_hist_prices = augment_token_hist_prices(
@@ -138,7 +138,9 @@ async def build_treasury_with_assets(
         await get_sparse_asset_hist_balances(treasury), augmented_token_hist_prices
     )
     augmented_total_balance = augment_total_balance(treasury, asset_hist_balances)
-    treasury = calculate_risk_contributions(treasury, augmented_token_hist_prices)
+    treasury = calculate_risk_contributions(
+        treasury, augmented_token_hist_prices, start, end
+    )
     return (
         treasury,
         augmented_token_hist_prices,

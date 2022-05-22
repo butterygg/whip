@@ -19,7 +19,7 @@ async def portfolio(address: str, start=str):
         augmented_token_hist_prices,
         asset_hist_balances,
         augmented_total_balance,
-    ) = await get_assets.build_treasury_with_assets(address, 1)
+    ) = await get_assets.build_treasury_with_assets(address, 1, start, end)
 
     histprices = {
         symbol: athp.set_index("timestamp").loc[start:end]

@@ -113,8 +113,14 @@ def populate_bitquery_hist_eth_balance(eth_transfers: list[BitqueryTransfer]) ->
     )
 
 
-def calculate_risk_contributions(treasury: Treasury, augmented_token_hist_prices: DF):
+def calculate_risk_contributions(
+    treasury: Treasury, augmented_token_hist_prices: DF, start: str, end: str
+):
     hist_prices_items = list(iter(augmented_token_hist_prices.items()))
+    hist_prices_items = [
+        (symbol, hist_prices.set_index("timestamp").loc[start:end].reset_index())
+        for symbol, hist_prices in hist_prices_items
+    ]
 
     def reducer_on_symbol_and_hist_prices(
         matrix: DF, symbol_and_hist_prices: tuple[str, DF]
