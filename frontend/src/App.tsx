@@ -103,25 +103,19 @@ function App() {
         throw new Error(
           `Portfolio fetch failed with status: ${resp.statusText}`
         );
-      const assets = await resp.json();
-
-      const kpis = {
-        "total value": "$100m",
-        volatility: "high",
-        "return vs market": "-11%",
-      };
+      const { assets, kpis, data } = await resp.json();
 
       setBaseAssets(assets);
       setBaseKpis(kpis);
 
       setChartData({
-        labels: ["January", "February", "March", "April", "May", "June"],
+        labels: Object.keys(data),
         datasets: [
           {
             label: "Total value in m USD",
             backgroundColor: "rgb(83, 83, 83)",
             borderColor: "rgb(83, 83, 83)",
-            data: [42, 48, 45, 42, 33, 23],
+            data: Object.values(data).map((x) => (x as number) / 1_000_000),
           },
         ],
       });
