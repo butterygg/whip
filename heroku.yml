@@ -1,0 +1,8 @@
+setup:
+  addons:
+    - plan: heroku-redis 
+      as: REDIS
+build:
+  docker:
+    web: api/Dockerfile
+    worker: scheduler/Dockerfile
