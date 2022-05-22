@@ -9,6 +9,7 @@ class ERC20:
     token_symbol: str
     token_address: str
     balance: float
+    risk_contribution: float = field(init=False)
 
 
 @dataclass

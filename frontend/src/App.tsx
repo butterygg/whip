@@ -429,7 +429,9 @@ function AssetsDisplay({
               </td>
               <td className="p-2">{`${(allocation * 100).toFixed(0)}%`}</td>
               <td className="p-2">{`${(volatility * 100).toFixed(1)}%`}</td>
-              <td className="p-2">{`${riskContribution * 100}%`}</td>
+              <td className="p-2">{`${(riskContribution * 100).toFixed(
+                2
+              )}%`}</td>
             </tr>
           )
         )}

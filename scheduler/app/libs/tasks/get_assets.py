@@ -8,13 +8,14 @@ from .. import bitquery
 from ..storage_helpers import store_asset_hist_balance, retrieve_treasuries_metadata
 from . import db, celery_app
 from ..pd_inter_calc import portfolio_midnight_filler
-from ..types import ERC20, Treasury
+from ..types import Treasury
 from .. import coingecko
 from .. import covalent
 from .treasury_ops import (
     add_statistics,
     populate_bitquery_hist_eth_balance,
     populate_hist_tres_balance,
+    calculate_risk_contributions,
 )
 
 load_dotenv()
@@ -137,6 +138,7 @@ async def build_treasury_with_assets(
         await get_sparse_asset_hist_balances(treasury), augmented_token_hist_prices
     )
     augmented_total_balance = augment_total_balance(treasury, asset_hist_balances)
+    treasury = calculate_risk_contributions(treasury, augmented_token_hist_prices)
     return (
         treasury,
         augmented_token_hist_prices,

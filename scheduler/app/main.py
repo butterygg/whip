@@ -31,7 +31,7 @@ async def portfolio(address: str, start=str):
         a.token_symbol: {
             "allocation": a.balance / treasury.usd_total,
             "volatility": histprices[a.token_symbol]["std_dev"].mean(),
-            "riskContribution": 0.123,
+            "riskContribution": a.risk_contribution,
         }
         for a in treasury.assets
     }

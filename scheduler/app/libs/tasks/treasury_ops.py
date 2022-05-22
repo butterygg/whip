@@ -1,9 +1,12 @@
 from dateutil import parser
 from math import log
 from typing import Any, Dict, List, Optional
+from functools import reduce
 
+import numpy as np
 from pandas import DataFrame as DF, MultiIndex, Series
 
+from ..types import Treasury
 from ..bitquery import BitqueryTransfer
 
 
@@ -108,3 +111,56 @@ def populate_bitquery_hist_eth_balance(eth_transfers: list[BitqueryTransfer]) ->
         name="treasury_balances",
         dtype="float64",
     )
+
+
+def calculate_risk_contributions(treasury: Treasury, augmented_token_hist_prices: DF):
+    hist_prices_items = list(iter(augmented_token_hist_prices.items()))
+
+    def reducer_on_symbol_and_hist_prices(
+        matrix: DF, symbol_and_hist_prices: tuple[str, DF]
+    ) -> DF:
+        symbol, hist_prices = symbol_and_hist_prices
+        return matrix.merge(
+            hist_prices[["timestamp", "returns"]].rename(columns={"returns": symbol}),
+            on="timestamp",
+        )
+
+    returns_matrix = (
+        reduce(
+            reducer_on_symbol_and_hist_prices,
+            hist_prices_items,
+            hist_prices_items[0][1][["timestamp", "returns"]].rename(
+                columns={"return": hist_prices_items[0][0]}
+            ),
+        )
+        .drop("returns", axis=1)
+        .set_index("timestamp")
+    )
+
+    current_balances = {asset.token_symbol: asset.balance for asset in treasury.assets}
+    weights = np.array(
+        [
+            np.fromiter(
+                (current_balances[symbol] for symbol in returns_matrix.columns), float
+            )
+            / treasury.usd_total
+        ]
+    )
+
+    cov_matrix = returns_matrix.cov()
+
+    std_dev = np.sqrt(np.dot(np.dot(weights, cov_matrix), weights.T)[0][0])
+
+    marginal_contributions = np.dot(weights, cov_matrix) / std_dev
+    component_contributions = np.multiply(marginal_contributions, weights)
+
+    component_percentages = component_contributions / std_dev
+
+    def get_asset(symbol):
+        return next(asset for asset in treasury.assets if asset.token_symbol == symbol)
+
+    for symbol, percentage in zip(returns_matrix.columns, component_percentages[0]):
+        asset = get_asset(symbol)
+        asset.risk_contribution = percentage
+
+    return treasury
