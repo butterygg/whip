@@ -9,14 +9,14 @@ from .libs.tasks import get_assets
 app = FastAPI()
 
 
-@app.get("/portfolio/{address}/{start}/{end}")
-async def portfolio(address: str, start=str, end=str):
+@app.get("/portfolio/{address}/{start}")
+async def portfolio(address: str, start=str):
     start_date = dateutil.parser.parse(start).replace(tzinfo=UTC)
-    end_date = dateutil.parser.parse(end).replace(tzinfo=UTC)
     (
         treasury,
         augmented_token_hist_prices,
         asset_hist_balances,
+        augmented_total_balance,
     ) = await get_assets.build_treasury_with_assets(address, 1)
 
     assets = {
@@ -33,26 +33,9 @@ async def portfolio(address: str, start=str, end=str):
         "return vs market": 0.1,
     }
 
-    def get_balance_or_0(df, key):
-        try:
-            return df.loc[key].balance
-        except KeyError:
-            return 0
-
-    data = {}
-    end = dateutil.utils.today(UTC)
-    start = end - datetime.timedelta(days=365)
-    date = start
-    while True:
-        data[date.strftime("%Y-%m-%d")] = sum(
-            get_balance_or_0(asset_hist_balances[a.token_symbol], date)
-            * a.balance
-            / treasury.usd_total
-            for a in treasury.assets
-        )
-
-        if date == end:
-            break
-        date += datetime.timedelta(days=1)
+    data = {
+        timestamp.to_pydatetime().strftime("%Y-%m-%d"): balance
+        for timestamp, balance in augmented_total_balance.to_dict().items()
+    }
 
     return {"assets": assets, "kpis": kpis, "data": data}

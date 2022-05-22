@@ -1,4 +1,5 @@
-from itertools import chain
+from functools import reduce
+
 from asgiref.sync import async_to_sync
 from dotenv import load_dotenv
 from pandas import DataFrame as DF, Series, to_datetime
@@ -110,6 +111,15 @@ async def fill_asset_hist_balances(
     }
 
 
+def augment_total_balance(
+    treasury: Treasury, asset_hist_balances: dict[str, DF]
+) -> Series:
+    return reduce(
+        lambda acc, item: acc.add(item, fill_value=0),
+        (balance["balance"] for balance in asset_hist_balances.values()),
+    )
+
+
 async def build_treasury_with_assets(
     treasury_address: str, chain_id: int
 ) -> tuple[Treasury, dict[str, DF], dict[str, DF]]:
@@ -120,7 +130,13 @@ async def build_treasury_with_assets(
     asset_hist_balances = await fill_asset_hist_balances(
         await get_sparse_asset_hist_balances(treasury), augmented_token_hist_prices
     )
-    return treasury, augmented_token_hist_prices, asset_hist_balances
+    augmented_total_balance = augment_total_balance(treasury, asset_hist_balances)
+    return (
+        treasury,
+        augmented_token_hist_prices,
+        asset_hist_balances,
+        augmented_total_balance,
+    )
 
 
 @celery_app.on_after_finalize.connect

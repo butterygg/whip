@@ -72,7 +72,6 @@ function App() {
   const [startDate, setStartDate] = useState(
     deltaDate(getTodayMidnight(), -1, 0, 0)
   );
-  const [endDate, setEndDate] = useState(getTodayMidnight());
   const [baseKpis, setBaseKpis] = useState({
     "total value": undefined,
     volatility: undefined,
@@ -125,9 +124,7 @@ function App() {
     (async () => {
       if (!address) return;
       const resp = await fetch(
-        `/api/portfolio/${address}/${startDate
-          .toISOString()
-          .slice(0, 10)}/${endDate.toISOString().slice(0, 10)}`
+        `/api/portfolio/${address}/${startDate.toISOString().slice(0, 10)}`
       );
       if (!resp.ok)
         throw new Error(
