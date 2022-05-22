@@ -55,7 +55,7 @@ def add_statistics(
 
 
 async def populate_hist_tres_balance(
-    asset_trans_history: Dict[str, Any]
+    asset_trans_history: Dict[str, Any], start: str, end: str
 ) -> Optional[Series]:
     if not asset_trans_history:
         return None
@@ -74,6 +74,10 @@ async def populate_hist_tres_balance(
             symbol = transfers[0]["contract_ticker_symbol"]
 
         for transfer in transfers:
+            block_date = parser.parse(transfer["block_signed_at"])
+            if block_date.strftime("%Y-%m-%d") < start:
+                continue
+
             if not transfer["quote_rate"]:
                 continue
             delta = int(transfer["delta"])
@@ -84,7 +88,7 @@ async def populate_hist_tres_balance(
                 curr_balance -= delta / 10**decimals if decimals > 0 else 1
                 balances.append(curr_balance)
 
-            timeseries.append(parser.parse(transfer["block_signed_at"]))
+            timeseries.append(block_date)
 
     index = MultiIndex.from_tuples(
         [(ts, address, symbol) for ts in timeseries],
@@ -143,6 +147,15 @@ def calculate_risk_contributions(
         .set_index("timestamp")
     )
 
+    def get_asset(symbol):
+        return next(asset for asset in treasury.assets if asset.token_symbol == symbol)
+
+    # Remove ETH from matrix if not an actual portfolio asset
+    try:
+        get_asset("ETH")
+    except StopIteration:
+        returns_matrix.drop("ETH", axis=1, inplace=True)
+
     current_balances = {asset.token_symbol: asset.balance for asset in treasury.assets}
     weights = np.array(
         [
@@ -161,9 +174,6 @@ def calculate_risk_contributions(
     component_contributions = np.multiply(marginal_contributions, weights)
 
     component_percentages = component_contributions / std_dev
-
-    def get_asset(symbol):
-        return next(asset for asset in treasury.assets if asset.token_symbol == symbol)
 
     for symbol, percentage in zip(returns_matrix.columns, component_percentages[0]):
         asset = get_asset(symbol)

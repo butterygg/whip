@@ -63,7 +63,9 @@ def filter_out_small_assets(treasury: Treasury):
     return treasury
 
 
-async def get_sparse_asset_hist_balances(treasury: Treasury) -> dict[str, Series]:
+async def get_sparse_asset_hist_balances(
+    treasury: Treasury, start: str, end: str
+) -> dict[str, Series]:
     asset_contract_addresses = {
         asset.token_symbol: asset.token_address for asset in treasury.assets
     }
@@ -74,7 +76,7 @@ async def get_sparse_asset_hist_balances(treasury: Treasury) -> dict[str, Series
         for symbol, asset_contract_address in asset_contract_addresses.items()
     }
     maybe_sparse_asset_hist_balances = {
-        symbol: await populate_hist_tres_balance(transfer_history)
+        symbol: await populate_hist_tres_balance(transfer_history, start, end)
         for symbol, transfer_history in transfer_histories.items()
     }
     maybe_sparse_asset_hist_balances["ETH"] = populate_bitquery_hist_eth_balance(
@@ -135,7 +137,8 @@ async def build_treasury_with_assets(
         await get_token_hist_prices(treasury)
     )
     asset_hist_balances = await fill_asset_hist_balances(
-        await get_sparse_asset_hist_balances(treasury), augmented_token_hist_prices
+        await get_sparse_asset_hist_balances(treasury, start, end),
+        augmented_token_hist_prices,
     )
     augmented_total_balance = augment_total_balance(treasury, asset_hist_balances)
     treasury = calculate_risk_contributions(

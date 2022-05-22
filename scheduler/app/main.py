@@ -14,6 +14,8 @@ async def portfolio(address: str, start=str):
     start_date = dateutil.parser.parse(start).replace(tzinfo=UTC)
     end_date = dateutil.utils.today(UTC) - datetime.timedelta(days=1)
     end = end_date.strftime("%Y-%m-%d")
+    print(f"portfolio {address} {start} {end}")
+
     (
         treasury,
         augmented_token_hist_prices,
