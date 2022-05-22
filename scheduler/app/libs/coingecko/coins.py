@@ -2,8 +2,10 @@ from billiard.pool import MaybeEncodingError
 from json.decoder import JSONDecodeError
 from time import sleep
 from typing import Tuple, Union
-
 from httpx import AsyncClient, Timeout
+import json
+
+from .. import db
 
 
 async def get_coin_list():
@@ -13,6 +15,10 @@ async def get_coin_list():
         )
 
         return resp.json()
+
+
+CACHE_HASH = "coingecko_hist_prices"
+CACHE_KEY_TEMPLATE = "{symbol}_{start}_{end}"
 
 
 async def get_coin_hist_price(
@@ -35,6 +41,12 @@ async def get_coin_hist_price(
         start: datetime = end - timedelta(days=365 * start[0])
         start = mktime(start.timetuple())
         end = mktime(end.timetuple())
+
+    cache_key = CACHE_KEY_TEMPLATE.format(symbol=symbol, start=start, end=end)
+    if db.hexists(CACHE_HASH, cache_key):
+        prices = json.loads(db.hget(CACHE_HASH, cache_key))
+        return (contract_address, symbol, prices)
+
     timeout = Timeout(10.0, read=15.0, connect=30.0)
     async with AsyncClient(
         headers={
@@ -57,7 +69,11 @@ async def get_coin_hist_price(
             )
         sleep(5)
         try:
-            return (contract_address, symbol, resp.json().get("prices"))
+            prices = resp.json().get("prices")
         except JSONDecodeError as e:
             print(f"decode error for {resp.url}")
             return None
+
+        db.hset(CACHE_HASH, cache_key, json.dumps(prices))
+
+        return (contract_address, symbol, prices)

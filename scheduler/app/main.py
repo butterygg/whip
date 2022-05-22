@@ -8,7 +8,12 @@ app = FastAPI()
 
 @app.get("/portfolio/{address}")
 async def portfolio(address: str):
-    return {}
+    (
+        treasury,
+        augmented_token_hist_prices,
+        asset_hist_balances,
+    ) = await get_assets.build_treasury_with_assets(address, 1)
+    return treasury.__dict__
 
     # assets = {
     #     "UNI": {
