@@ -1,9 +1,10 @@
-from billiard.pool import MaybeEncodingError
+import json
 from json.decoder import JSONDecodeError
 from time import sleep
-from typing import Tuple, Union
+from typing import List, Tuple, Union
+
+from billiard.pool import MaybeEncodingError
 from httpx import AsyncClient, Timeout
-import json
 
 from .. import db
 
@@ -19,6 +20,12 @@ async def get_coin_list():
 
 CACHE_HASH = "coingecko_hist_prices"
 CACHE_KEY_TEMPLATE = "{symbol}_{start}_{end}"
+
+date_units = {
+    "days": 1,
+    "months": 31,
+    "years": 365
+}
 
 
 async def get_coin_hist_price(
@@ -59,11 +66,12 @@ async def get_coin_hist_price(
         from dateutil.tz import UTC
         from time import mktime
 
+        unit = start[1]
         if not end:
             end: datetime = today(UTC)
         else:
             end = datetime.fromtimestamp(end, tz=UTC)
-        start: datetime = end - timedelta(days=365 * start[0])
+        start: datetime = end - timedelta(days=date_units[unit] * start[0])
         start = mktime(start.timetuple())
         end = mktime(end.timetuple())
 
