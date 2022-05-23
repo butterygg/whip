@@ -26,7 +26,32 @@ async def get_coin_hist_price(
     symbol: str,
     start: Union[int, Tuple[int, str]],
     end: int = None,
-):
+) -> Tuple[str, str, List[List[int]]]:
+    """ Get the historical quote rates for a given token
+
+        `start` is the start date to query prices from, if
+        an `end` date isn't given, it returns the historical
+        prices from the `start` date to the present.
+
+        Parameters
+        ---
+        contract_address: str
+            ERC20 Contract address of the token to query
+        symbol: str
+            ERC20 symbol of token
+        start: int | Tuple[int, str]
+            start time can either be a unix timestamp in milliseconds
+            or a tuple ( # of units, units ) where a unit can be one of:
+            "years" | "months" | "days"
+        end: int
+            end date as unix timestamp in milliseconds
+
+        Notes
+        ---
+        if `contract_address` is the native token address,
+        0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee,
+        the it is converted to the WETH address
+    """
     if type(start) == tuple:
         from datetime import datetime
         from datetime import timedelta
