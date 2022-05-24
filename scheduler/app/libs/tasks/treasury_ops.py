@@ -24,10 +24,10 @@ def add_statistics(
         `returns` = ln(current_price / previous_price)
     """
     returns = []
-    for i in range(1, len(df)):
-        # current price is df[i - 1] since `loc` descends the DF
-        returns.append(log(df.loc[i - 1, column_name] / df.loc[i, column_name]))
     returns.append(0)
+    for i in range(1, len(df)):
+        # current price is df[i] since `loc` ascends the DF
+        returns.append(log(df.loc[i, column_name] / df.loc[i - 1, column_name]))
     df["returns"] = returns
 
     """ end section
@@ -39,10 +39,8 @@ def add_statistics(
     """
 
     window = 7
-    rolling_window = df["returns"].iloc[::-1].rolling(window)
+    rolling_window = df["returns"].rolling(window)
     std_dev = rolling_window.std(ddof=0)
-    print(std_dev.head(7))
-    # print(std_dev.tail(7))
     df["std_dev"] = std_dev
 
     """ end section
