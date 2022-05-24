@@ -39,9 +39,7 @@ async def get_token_hist_prices(treasury: Treasury) -> dict[str, DF]:
         (a.token_symbol, a.token_address) for a in treasury.assets
     } | {("ETH", "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")}
     maybe_hist_prices = {
-        token_symbol: await coingecko.get_coin_hist_price(
-            token_address, token_symbol, (1, "years")
-        )
+        token_symbol: await coingecko.get_coin_hist_price(token_address, token_symbol)
         for token_symbol, token_address in asset_addresses_including_ETH
     }
     hist_prices = {
