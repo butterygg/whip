@@ -107,7 +107,7 @@ async def populate_hist_tres_balance(
 
         for transfer in transfers:
             block_date = parser.parse(transfer["block_signed_at"])
-            if block_date.strftime("%Y-%m-%d") < start:
+            if block_date < parser.parse(start):
                 continue
 
             if not transfer["quote_rate"]:
@@ -121,6 +121,9 @@ async def populate_hist_tres_balance(
                 balances.append(curr_balance)
 
             timeseries.append(block_date)
+
+            if block_date == parser.parse(end):
+                break
 
     index = MultiIndex.from_tuples(
         [(ts, address, symbol) for ts in timeseries],
