@@ -25,12 +25,6 @@ async def get_coin_list():
 CACHE_HASH = "coingecko_hist_prices"
 CACHE_KEY_TEMPLATE = "{symbol}_{start}_{end}"
 
-date_units = {
-    "days": 1,
-    "months": 31,
-    "years": 365
-}
-
 
 async def get_coin_hist_price(
     contract_address: str,
