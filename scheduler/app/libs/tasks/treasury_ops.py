@@ -24,6 +24,14 @@ def add_statistics(
         `returns` = ln(current_price / previous_price)
     """
     returns = []
+    for i in range(1, len(df)):
+        # current price is df[i - 1] since `loc` descends the DF
+        prev = df.loc[i - 1, column_name]
+        current = df.loc[i, column_name]
+        if prev == 0 or current == 0:
+            returns.append(0)
+        else:
+            returns.append(log(prev / current))
     returns.append(0)
     for i in range(1, len(df)):
         # current price is df[i] since `loc` ascends the DF
@@ -56,7 +64,7 @@ def add_statistics(
 
 
 async def populate_hist_tres_balance(
-    asset_trans_history: Dict[str, Any], start: str, end: str
+    asset_trans_history: Dict[str, Any]
 ) -> Optional[Series]:
     """ Return a Series of a given treasury's *partial*, historical token balance.
 
@@ -108,8 +116,6 @@ async def populate_hist_tres_balance(
 
         for transfer in transfers:
             block_date = parser.parse(transfer["block_signed_at"])
-            if block_date < parser.parse(start):
-                continue
 
             if not transfer["quote_rate"]:
                 continue
@@ -122,9 +128,6 @@ async def populate_hist_tres_balance(
                 balances.append(curr_balance)
 
             timeseries.append(block_date)
-
-            if block_date == parser.parse(end):
-                break
 
     index = MultiIndex.from_tuples(
         [(ts, address, symbol) for ts in timeseries],
@@ -156,15 +159,9 @@ def populate_bitquery_hist_eth_balance(eth_transfers: list[BitqueryTransfer]) ->
 def calculate_risk_contributions(
     treasury: Treasury, augmented_token_hist_prices: Dict[str, DF], start: str, end: str
 ):
-    start: datetime = parser.parse(start)
-    end: datetime = parser.parse(end)
-    start = start.strftime("%Y-%m-%d")
-    end = end.strftime("%Y-%m-%d")
-
-    hist_prices_items = list(iter(augmented_token_hist_prices.items()))
     hist_prices_items = [
         (symbol, hist_prices.set_index("timestamp").loc[start:end].reset_index())
-        for symbol, hist_prices in hist_prices_items
+        for symbol, hist_prices in augmented_token_hist_prices.items()
     ]
 
     def reducer_on_symbol_and_hist_prices(
