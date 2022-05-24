@@ -41,6 +41,8 @@ def add_statistics(
     window = 7
     rolling_window = df["returns"].iloc[::-1].rolling(window)
     std_dev = rolling_window.std(ddof=0)
+    print(std_dev.head(7))
+    # print(std_dev.tail(7))
     df["std_dev"] = std_dev
 
     """ end section
