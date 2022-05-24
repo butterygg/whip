@@ -319,11 +319,11 @@ def setup_periodic_tasks(sender, **kwargs):
 
 @celery_app.task
 def reload_treasuries_data():
-    end: datetime = today(UTC)
-    start: datetime = end - timedelta(days=365)
+    end_date: datetime = today(UTC)
+    start_date: datetime = end_date - timedelta(days=365)
 
-    start = start.isoformat()
-    end = end.isoformat()
+    start = start_date.isoformat()[:10]
+    end = end_date.isoformat()[:10]
 
     for treasury_metadata in retrieve_treasuries_metadata():
         with db.pipeline() as pipe:
@@ -332,7 +332,9 @@ def reload_treasuries_data():
                 augmented_token_hist_prices,
                 asset_hist_balances,
                 augemented_total_balance,
-            ) = async_to_sync(build_treasury_with_assets)(*treasury_metadata)
+            ) = async_to_sync(build_treasury_with_assets)(
+                *treasury_metadata, start, end
+            )
 
             for symbol, asset_hist_performance in augmented_token_hist_prices.items():
                 store_asset_hist_performance(
