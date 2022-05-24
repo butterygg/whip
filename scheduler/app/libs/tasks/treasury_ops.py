@@ -1,3 +1,4 @@
+from datetime import datetime
 from dateutil import parser
 from math import log
 from typing import Any, Dict, List, Optional
@@ -153,8 +154,13 @@ def populate_bitquery_hist_eth_balance(eth_transfers: list[BitqueryTransfer]) ->
 
 
 def calculate_risk_contributions(
-    treasury: Treasury, augmented_token_hist_prices: DF, start: str, end: str
+    treasury: Treasury, augmented_token_hist_prices: Dict[str, DF], start: str, end: str
 ):
+    start: datetime = parser.parse(start)
+    end: datetime = parser.parse(end)
+    start = start.strftime("%Y-%m-%d")
+    end = end.strftime("%Y-%m-%d")
+
     hist_prices_items = list(iter(augmented_token_hist_prices.items()))
     hist_prices_items = [
         (symbol, hist_prices.set_index("timestamp").loc[start:end].reset_index())
@@ -204,11 +210,17 @@ def calculate_risk_contributions(
     cov_matrix = returns_matrix.cov()
 
     std_dev = np.sqrt(np.dot(np.dot(weights, cov_matrix), weights.T)[0][0])
+    # std_dev = np.sqrt(weights.T.dot(cov_matrix.dot(weights)))
+    # std_dev = np.sqrt(np.cross(np.cross(weights.T, cov_matrix), weights))
+    print(std_dev)
 
-    marginal_contributions = np.dot(weights, cov_matrix) / std_dev
+    # marginal_contributions = np.cross(weights, cov_matrix) / std_dev[0][0]
+    marginal_contributions = weights.dot(cov_matrix) / std_dev[0][0]
     component_contributions = np.multiply(marginal_contributions, weights)
 
-    component_percentages = component_contributions / std_dev
+    print(np.sum(component_contributions))
+
+    component_percentages = component_contributions / std_dev[0][0]
 
     for symbol, percentage in zip(returns_matrix.columns, component_percentages[0]):
         asset = get_asset(symbol)
