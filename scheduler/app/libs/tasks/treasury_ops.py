@@ -209,16 +209,15 @@ def calculate_risk_contributions(
 
     cov_matrix = returns_matrix.cov()
 
-    std_dev = np.sqrt(np.dot(np.dot(weights, cov_matrix), weights.T)[0][0])
-    # std_dev = np.sqrt(weights.T.dot(cov_matrix.dot(weights)))
-    # std_dev = np.sqrt(np.cross(np.cross(weights.T, cov_matrix), weights))
-    print(std_dev)
+    std_dev = np.sqrt(weights.dot(cov_matrix).dot(weights.T))
 
-    # marginal_contributions = np.cross(weights, cov_matrix) / std_dev[0][0]
     marginal_contributions = weights.dot(cov_matrix) / std_dev[0][0]
     component_contributions = np.multiply(marginal_contributions, weights)
 
-    print(np.sum(component_contributions))
+    summed_component_contributions = np.sum(component_contributions)
+
+    assert summed_component_contributions == std_dev[0][0], "error in calculations"
+    print(f"component_contributions: {component_contributions}")
 
     component_percentages = component_contributions / std_dev[0][0]
 
