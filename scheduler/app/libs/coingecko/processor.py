@@ -19,7 +19,7 @@ def coingecko_hist_df(
         symbol: str
             The token's ERC20 symbol
         resp: List[List[int]]
-            Response from `coingecko.coins.get_coin_hist_price`;
+            Response from `libs.coingecko.coins.get_coin_hist_price`;
             A list of [timestamp, quote_rate] pairs
     """
     prices = []
