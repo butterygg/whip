@@ -14,7 +14,7 @@ from .. import bitquery
 from ..storage_helpers import (
     store_asset_hist_balance,
     store_asset_hist_performance,
-    retrieve_treasuries_metadata
+    retrieve_treasuries_metadata,
 )
 from . import db, celery_app
 from ..pd_inter_calc import portfolio_midnight_filler
@@ -55,9 +55,7 @@ async def get_token_hist_prices(treasury: Treasury) -> dict[str, DF]:
     }
 
 
-def augment_token_hist_prices(
-    token_hist_prices: dict[str, DF]
-) -> dict[str, DF]:
+def augment_token_hist_prices(token_hist_prices: dict[str, DF]) -> dict[str, DF]:
     return {
         symbol: add_statistics(token_hist_price)
         for symbol, token_hist_price in token_hist_prices.items()
@@ -138,7 +136,7 @@ def augment_total_balance(
 
 
 async def build_treasury_with_assets(
-    treasury_address: str, chain_id: int, start: str = None, end: str = None
+    treasury_address: str, chain_id: int, start: str, end: str
 ) -> tuple[Treasury, dict[str, DF], dict[str, DF]]:
     treasury = filter_out_small_assets(await make_treasury(treasury_address, chain_id))
     augmented_token_hist_prices = augment_token_hist_prices(
@@ -153,14 +151,6 @@ async def build_treasury_with_assets(
     treasury = calculate_risk_contributions(
         treasury, augmented_token_hist_prices, start, end
     )
-    augmented_token_hist_prices = {
-        symbol: {
-            ts.isoformat(): value
-            for ts, value in
-            hist_prices.set_index("timestamp").to_dict(orient="index").items()
-        }
-        for symbol, hist_prices in augmented_token_hist_prices.items()
-    }
     return (
         treasury,
         augmented_token_hist_prices,
@@ -186,19 +176,27 @@ def reload_treasuries_data():
 
     for treasury_metadata in retrieve_treasuries_metadata():
         with db.pipeline() as pipe:
-            treasury, \
-            augmented_token_hist_prices, \
-            asset_hist_balances, \
-            augemented_total_balance \
-                = async_to_sync(
-                build_treasury_with_assets
-            )(*treasury_metadata)
+            (
+                treasury,
+                augmented_token_hist_prices,
+                asset_hist_balances,
+                augemented_total_balance,
+            ) = async_to_sync(build_treasury_with_assets)(*treasury_metadata)
 
             for symbol, asset_hist_performance in augmented_token_hist_prices.items():
                 store_asset_hist_performance(
                     symbol,
-                    dumps(asset_hist_performance),
-                    pipe
+                    dumps(
+                        {
+                            ts.isoformat(): value
+                            for ts, value in asset_hist_performance.set_index(
+                                "timestamp"
+                            )
+                            .to_dict(orient="index")
+                            .items()
+                        }
+                    ),
+                    pipe,
                 )
 
             for symbol, asset_hist_balance in asset_hist_balances.items():
