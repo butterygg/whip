@@ -130,12 +130,28 @@ def augment_total_balance(
 
 
 async def build_treasury_with_assets(
-    treasury_address: str, chain_id: int, start: str, end: str
+    treasury_address: str, chain_id: int, start: str = None, end: str = None
 ) -> tuple[Treasury, dict[str, DF], dict[str, DF]]:
     treasury = filter_out_small_assets(await make_treasury(treasury_address, chain_id))
     augmented_token_hist_prices = augment_token_hist_prices(
         await get_token_hist_prices(treasury)
     )
+
+    if not start:
+        from datetime import datetime
+        from datetime import timedelta
+        from dateutil.utils import today
+        from dateutil.tz import UTC
+        from time import mktime
+        if not end:
+            end: datetime = today(UTC)
+        else:
+            end = datetime.fromisoformat(end, tz=UTC)
+        start: datetime = end - timedelta(days=365 * 1)
+
+        start = start.isoformat()
+        end = end.isoformat()
+
     asset_hist_balances = await fill_asset_hist_balances(
         await get_sparse_asset_hist_balances(treasury, start, end),
         augmented_token_hist_prices,
@@ -165,7 +181,8 @@ def reload_treasuries_data():
         with db.pipeline() as pipe:
             treasury, augmented_token_hist_prices, asset_hist_balances = async_to_sync(
                 build_treasury_with_assets
-            )(*treasury_metadata)
+            )(*treasury_metadata, )
+
             for symbol, asset_hist_balance in asset_hist_balances.items():
                 store_asset_hist_balance(
                     treasury.address,
