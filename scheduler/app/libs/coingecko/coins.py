@@ -1,7 +1,9 @@
-from billiard.pool import MaybeEncodingError
+import json
 from json.decoder import JSONDecodeError
 from time import sleep
-from typing import Tuple, Union
+from typing import List, Tuple, Union
+
+from billiard.pool import MaybeEncodingError
 from httpx import AsyncClient, Timeout
 import json
 import dateutil.utils
@@ -43,7 +45,9 @@ async def get_coin_hist_price(
     timeout = Timeout(10.0, read=15.0, connect=30.0)
     async with AsyncClient(
         headers={
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36 Edg/100.0.1185.50"
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+                          "AppleWebKit/537.36 (KHTML, like Gecko) " +
+                          "Chrome/100.0.4896.127 Safari/537.36 Edg/100.0.1185.50"
         }
     ) as client:
         # replace ETH address to WETH

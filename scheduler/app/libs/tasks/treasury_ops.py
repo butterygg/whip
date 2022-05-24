@@ -1,5 +1,6 @@
+from datetime import datetime
 from dateutil import parser
-from math import log
+from math import log, isclose
 from typing import Any, Dict, List, Optional
 from functools import reduce
 
@@ -61,6 +62,38 @@ def add_statistics(
 async def populate_hist_tres_balance(
     asset_trans_history: Dict[str, Any]
 ) -> Optional[Series]:
+    """ Return a Series of a given treasury's *partial*, historical token balance.
+
+        The given `asset_trans_history` should be a response from
+        `libs.covalent.transfers.get_token_transfers_for_wallet`.
+
+        Parameters
+        ---
+        asset_trans_history: Dict[str, Any]
+            A covalent response from their `transfers_v2` endpoint.
+            This should be obtained by using
+            `libs.covalent.transfers.get_token_transfers_for_wallet`
+        start: str
+            Date to query transfers from. This as well as `end` should be
+            formatted as `%Y-%m-%d`
+        end: str
+            Date to end transfer query
+
+        Notes
+        ---
+        The historical token balancce of the given treasury is partial
+        because, naturaly, covalent's transfers_v2 endpoint only returns
+        historical transfers and doesn't return the balance at the time
+        of transfer.
+        
+        Thus, the balance for a given treasury can only be calculated for
+        the date of transfer from the covalent response.
+
+        ---
+
+        the end date allows the historical query to end, returning the
+        historical balance from between the start and end dates.
+    """
     if not asset_trans_history:
         return None
     blocks = asset_trans_history["items"]
@@ -120,7 +153,7 @@ def populate_bitquery_hist_eth_balance(eth_transfers: list[BitqueryTransfer]) ->
 
 
 def calculate_risk_contributions(
-    treasury: Treasury, augmented_token_hist_prices: DF, start: str, end: str
+    treasury: Treasury, augmented_token_hist_prices: Dict[str, DF], start: str, end: str
 ):
     hist_prices_items = [
         (symbol, hist_prices.set_index("timestamp").loc[start:end].reset_index())
@@ -169,12 +202,17 @@ def calculate_risk_contributions(
 
     cov_matrix = returns_matrix.cov()
 
-    std_dev = np.sqrt(np.dot(np.dot(weights, cov_matrix), weights.T)[0][0])
+    std_dev = np.sqrt(weights.dot(cov_matrix).dot(weights.T))
 
-    marginal_contributions = np.dot(weights, cov_matrix) / std_dev
+    marginal_contributions = weights.dot(cov_matrix) / std_dev[0][0]
     component_contributions = np.multiply(marginal_contributions, weights)
 
-    component_percentages = component_contributions / std_dev
+    summed_component_contributions = np.sum(component_contributions)
+
+    assert isclose(summed_component_contributions, std_dev[0][0], rel_tol=0.0001), "error in calculations"
+    print(f"component_contributions: {component_contributions}")
+
+    component_percentages = component_contributions / std_dev[0][0]
 
     for symbol, percentage in zip(returns_matrix.columns, component_percentages[0]):
         asset = get_asset(symbol)

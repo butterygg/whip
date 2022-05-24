@@ -1,11 +1,21 @@
+from datetime import datetime
+from datetime import timedelta
+from dateutil.utils import today
+from dateutil.tz import UTC
 from functools import reduce
+from json import dumps
+from typing import Any
 
 from asgiref.sync import async_to_sync
 from dotenv import load_dotenv
 from pandas import DataFrame as DF, Series, to_datetime
 
 from .. import bitquery
-from ..storage_helpers import store_asset_hist_balance, retrieve_treasuries_metadata
+from ..storage_helpers import (
+    store_asset_hist_balance,
+    store_asset_hist_performance,
+    retrieve_treasuries_metadata
+)
 from . import db, celery_app
 from ..pd_inter_calc import portfolio_midnight_filler
 from ..types import Treasury
@@ -45,7 +55,9 @@ async def get_token_hist_prices(treasury: Treasury) -> dict[str, DF]:
     }
 
 
-def augment_token_hist_prices(token_hist_prices: dict[str, DF]) -> dict[str, DF]:
+def augment_token_hist_prices(
+    token_hist_prices: dict[str, DF]
+) -> dict[str, DF]:
     return {
         symbol: add_statistics(token_hist_price)
         for symbol, token_hist_price in token_hist_prices.items()
@@ -126,12 +138,13 @@ def augment_total_balance(
 
 
 async def build_treasury_with_assets(
-    treasury_address: str, chain_id: int, start: str, end: str
+    treasury_address: str, chain_id: int, start: str = None, end: str = None
 ) -> tuple[Treasury, dict[str, DF], dict[str, DF]]:
     treasury = filter_out_small_assets(await make_treasury(treasury_address, chain_id))
     augmented_token_hist_prices = augment_token_hist_prices(
         await get_token_hist_prices(treasury)
     )
+
     asset_hist_balances = await fill_asset_hist_balances(
         await get_sparse_asset_hist_balances(treasury),
         augmented_token_hist_prices,
@@ -140,6 +153,14 @@ async def build_treasury_with_assets(
     treasury = calculate_risk_contributions(
         treasury, augmented_token_hist_prices, start, end
     )
+    augmented_token_hist_prices = {
+        symbol: {
+            ts.isoformat(): value
+            for ts, value in
+            hist_prices.set_index("timestamp").to_dict(orient="index").items()
+        }
+        for symbol, hist_prices in augmented_token_hist_prices.items()
+    }
     return (
         treasury,
         augmented_token_hist_prices,
@@ -157,11 +178,29 @@ def setup_periodic_tasks(sender, **kwargs):
 
 @celery_app.task
 def reload_treasuries_data():
+    end: datetime = today(UTC)
+    start: datetime = end - timedelta(days=365)
+
+    start = start.isoformat()
+    end = end.isoformat()
+
     for treasury_metadata in retrieve_treasuries_metadata():
         with db.pipeline() as pipe:
-            treasury, augmented_token_hist_prices, asset_hist_balances = async_to_sync(
+            treasury, \
+            augmented_token_hist_prices, \
+            asset_hist_balances, \
+            augemented_total_balance \
+                = async_to_sync(
                 build_treasury_with_assets
             )(*treasury_metadata)
+
+            for symbol, asset_hist_performance in augmented_token_hist_prices.items():
+                store_asset_hist_performance(
+                    symbol,
+                    dumps(asset_hist_performance),
+                    pipe
+                )
+
             for symbol, asset_hist_balance in asset_hist_balances.items():
                 store_asset_hist_balance(
                     treasury.address,

@@ -36,3 +36,14 @@ def store_asset_hist_balance(
         BALANCES_KEY_TEMPLATE.format(address=treasury_address, symbol=symbol),
         asset_hist_balance_json,
     )
+
+def store_asset_hist_performance(
+    symbol: str,
+    asset_hist_performance_json: str,
+    provider: Union[redis.Redis, redis.client.Pipeline] = db,
+):
+    provider.hset(
+        "asset_hist_performance",
+        symbol,
+        asset_hist_performance_json
+    )
