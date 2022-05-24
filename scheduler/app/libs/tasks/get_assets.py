@@ -175,7 +175,6 @@ async def build_treasury_with_assets(
         }
         for symbol, hist_prices in augmented_token_hist_prices.items()
     }
-    print(augmented_token_hist_prices)
     return (
         treasury,
         augmented_token_hist_prices,
