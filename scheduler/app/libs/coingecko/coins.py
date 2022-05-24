@@ -4,6 +4,9 @@ from time import sleep
 from typing import Tuple, Union
 from httpx import AsyncClient, Timeout
 import json
+import dateutil.utils
+import dateutil.tz
+import datetime
 
 from .. import db
 
@@ -24,25 +27,15 @@ CACHE_KEY_TEMPLATE = "{symbol}_{start}_{end}"
 async def get_coin_hist_price(
     contract_address: str,
     symbol: str,
-    start: Union[int, Tuple[int, str]],
-    end: int = None,
 ):
-    if type(start) == tuple:
-        from datetime import datetime
-        from datetime import timedelta
-        from dateutil.utils import today
-        from dateutil.tz import UTC
-        from time import mktime
+    end_date = dateutil.utils.today(dateutil.tz.UTC)
+    start_date = end_date - datetime.timedelta(days=366)
 
-        if not end:
-            end: datetime = today(UTC)
-        else:
-            end = datetime.fromtimestamp(end, tz=UTC)
-        start: datetime = end - timedelta(days=365 * start[0])
-        start = mktime(start.timetuple())
-        end = mktime(end.timetuple())
-
-    cache_key = CACHE_KEY_TEMPLATE.format(symbol=symbol, start=start, end=end)
+    cache_key = CACHE_KEY_TEMPLATE.format(
+        symbol=symbol,
+        start=start_date.strftime("%Y-%m-%d"),
+        end=end_date.strftime("%Y-%m-%d"),
+    )
     if db.hexists(CACHE_HASH, cache_key):
         prices = json.loads(db.hget(CACHE_HASH, cache_key))
         return (contract_address, symbol, prices)
@@ -58,13 +51,13 @@ async def get_coin_hist_price(
             contract_address = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
         try:
             resp = await client.get(
-                f"https://api.coingecko.com/api/v3/coins/ethereum/contract/{contract_address}/market_chart/range?vs_currency=usd&from={start}&to={end}",
+                f"https://api.coingecko.com/api/v3/coins/ethereum/contract/{contract_address}/market_chart/range?vs_currency=usd&from={start_date.timestamp()}&to={end_date.timestamp()}",
                 timeout=timeout,
             )
         except MaybeEncodingError as e:
             sleep(5)
             resp = await client.get(
-                f"https://api.coingecko.com/api/v3/coins/ethereum/contract/{contract_address}/market_chart/range?vs_currency=usd&from={start}&to={end}",
+                f"https://api.coingecko.com/api/v3/coins/ethereum/contract/{contract_address}/market_chart/range?vs_currency=usd&from={start_date.timestamp()}&to={end_date.timestamp()}",
                 timeout=timeout,
             )
         sleep(5)
@@ -74,6 +67,6 @@ async def get_coin_hist_price(
             print(f"decode error for {resp.url}")
             return None
 
-        db.hset(CACHE_HASH, cache_key, json.dumps(prices))
+    db.hset(CACHE_HASH, cache_key, json.dumps(prices))
 
-        return (contract_address, symbol, prices)
+    return (contract_address, symbol, prices)
