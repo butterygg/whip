@@ -63,9 +63,7 @@ def filter_out_small_assets(treasury: Treasury):
     return treasury
 
 
-async def get_sparse_asset_hist_balances(
-    treasury: Treasury, start: str, end: str
-) -> dict[str, Series]:
+async def get_sparse_asset_hist_balances(treasury: Treasury) -> dict[str, Series]:
     asset_contract_addresses = {
         asset.token_symbol: asset.token_address for asset in treasury.assets
     }
@@ -76,7 +74,7 @@ async def get_sparse_asset_hist_balances(
         for symbol, asset_contract_address in asset_contract_addresses.items()
     }
     maybe_sparse_asset_hist_balances = {
-        symbol: await populate_hist_tres_balance(transfer_history, start, end)
+        symbol: await populate_hist_tres_balance(transfer_history)
         for symbol, transfer_history in transfer_histories.items()
     }
     maybe_sparse_asset_hist_balances["ETH"] = populate_bitquery_hist_eth_balance(
@@ -120,12 +118,12 @@ async def fill_asset_hist_balances(
 def augment_total_balance(
     treasury: Treasury, asset_hist_balances: dict[str, DF]
 ) -> Series:
-    total_balance = reduce(
+    hist_total_balance = reduce(
         lambda acc, item: acc.add(item, fill_value=0),
         (balance["balance"] for balance in asset_hist_balances.values()),
     )
     return add_statistics(
-        total_balance, column_name="balance", reverse=False, index="timestamp"
+        hist_total_balance, column_name="balance", reverse=False, index="timestamp"
     )
 
 
@@ -137,7 +135,7 @@ async def build_treasury_with_assets(
         await get_token_hist_prices(treasury)
     )
     asset_hist_balances = await fill_asset_hist_balances(
-        await get_sparse_asset_hist_balances(treasury, start, end),
+        await get_sparse_asset_hist_balances(treasury),
         augmented_token_hist_prices,
     )
     augmented_total_balance = augment_total_balance(treasury, asset_hist_balances)

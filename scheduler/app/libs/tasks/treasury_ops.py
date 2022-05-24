@@ -25,7 +25,12 @@ def add_statistics(
     returns = []
     for i in range(1, len(df)):
         # current price is df[i - 1] since `loc` descends the DF
-        returns.append(log(df.loc[i - 1, column_name] / df.loc[i, column_name]))
+        prev = df.loc[i - 1, column_name]
+        current = df.loc[i, column_name]
+        if prev == 0 or current == 0:
+            returns.append(0)
+        else:
+            returns.append(log(prev / current))
     returns.append(0)
     df["returns"] = returns
 
@@ -55,7 +60,7 @@ def add_statistics(
 
 
 async def populate_hist_tres_balance(
-    asset_trans_history: Dict[str, Any], start: str, end: str
+    asset_trans_history: Dict[str, Any]
 ) -> Optional[Series]:
     if not asset_trans_history:
         return None
@@ -75,8 +80,6 @@ async def populate_hist_tres_balance(
 
         for transfer in transfers:
             block_date = parser.parse(transfer["block_signed_at"])
-            if block_date.strftime("%Y-%m-%d") < start:
-                continue
 
             if not transfer["quote_rate"]:
                 continue
@@ -120,10 +123,9 @@ def populate_bitquery_hist_eth_balance(eth_transfers: list[BitqueryTransfer]) ->
 def calculate_risk_contributions(
     treasury: Treasury, augmented_token_hist_prices: DF, start: str, end: str
 ):
-    hist_prices_items = list(iter(augmented_token_hist_prices.items()))
     hist_prices_items = [
         (symbol, hist_prices.set_index("timestamp").loc[start:end].reset_index())
-        for symbol, hist_prices in hist_prices_items
+        for symbol, hist_prices in augmented_token_hist_prices.items()
     ]
 
     def reducer_on_symbol_and_hist_prices(
