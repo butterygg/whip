@@ -8,18 +8,15 @@ from . import db
 CHAIN_ID = 1
 
 
-def store_treasury_metadata(address: str):
-    stored_addresses = [
-        json.loads(t)["address"] for t in db.lrange("treasuries", 0, -1)
-    ]
-    if address in stored_addresses:
-        return
-    db.rpush({"address": address, "chain_id": CHAIN_ID})
+def store_treasury_metadata(address: str, chain_id: int = CHAIN_ID):
+    for _addr, _chain_id in (json.loads(t) for t in db.lrange("treasuries", 0, -1)):
+        if (_addr, _chain_id) == (address, chain_id):
+            return
+    db.rpush("treasuries", json.dumps([address, chain_id]))
 
 
 def retrieve_treasuries_metadata() -> list[tuple[str, int]]:
-    treasuries_meta = [json.loads(t) for t in db.lrange("treasuries", 0, -1)]
-    return [(tm["address"], tm.get("chain_id", CHAIN_ID)) for tm in treasuries_meta]
+    return [tuple(json.loads(t)) for t in db.lrange("treasuries", 0, -1)]
 
 
 BALANCES_KEY_TEMPLATE = "{address}_{symbol}"
@@ -37,13 +34,10 @@ def store_asset_hist_balance(
         asset_hist_balance_json,
     )
 
+
 def store_asset_hist_performance(
     symbol: str,
     asset_hist_performance_json: str,
     provider: Union[redis.Redis, redis.client.Pipeline] = db,
 ):
-    provider.hset(
-        "asset_hist_performance",
-        symbol,
-        asset_hist_performance_json
-    )
+    provider.hset("asset_hist_performance", symbol, asset_hist_performance_json)
