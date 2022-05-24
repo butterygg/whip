@@ -1,11 +1,18 @@
+from datetime import datetime
 from functools import reduce
+from json import dumps
+from typing import Any
 
 from asgiref.sync import async_to_sync
 from dotenv import load_dotenv
 from pandas import DataFrame as DF, Series, to_datetime
 
 from .. import bitquery
-from ..storage_helpers import store_asset_hist_balance, retrieve_treasuries_metadata
+from ..storage_helpers import (
+    store_asset_hist_balance,
+    store_asset_hist_performance,
+    retrieve_treasuries_metadata
+)
 from . import db, celery_app
 from ..pd_inter_calc import portfolio_midnight_filler
 from ..types import Treasury
@@ -47,7 +54,9 @@ async def get_token_hist_prices(treasury: Treasury) -> dict[str, DF]:
     }
 
 
-def augment_token_hist_prices(token_hist_prices: dict[str, DF]) -> dict[str, DF]:
+def augment_token_hist_prices(
+    token_hist_prices: dict[str, DF]
+) -> dict[str, DF]:
     return {
         symbol: add_statistics(token_hist_price)
         for symbol, token_hist_price in token_hist_prices.items()
@@ -160,6 +169,15 @@ async def build_treasury_with_assets(
     treasury = calculate_risk_contributions(
         treasury, augmented_token_hist_prices, start, end
     )
+    augmented_token_hist_prices = {
+        symbol: {
+            ts.isoformat(): value
+            for ts, value in
+            hist_prices.set_index("timestamp").to_dict(orient="index").items()
+        }
+        for symbol, hist_prices in augmented_token_hist_prices.items()
+    }
+    print(augmented_token_hist_prices)
     return (
         treasury,
         augmented_token_hist_prices,
@@ -186,6 +204,13 @@ def reload_treasuries_data():
                 = async_to_sync(
                 build_treasury_with_assets
             )(*treasury_metadata)
+
+            for symbol, asset_hist_performance in augmented_token_hist_prices.items():
+                store_asset_hist_performance(
+                    symbol,
+                    dumps(asset_hist_performance),
+                    pipe
+                )
 
             for symbol, asset_hist_balance in asset_hist_balances.items():
                 store_asset_hist_balance(
