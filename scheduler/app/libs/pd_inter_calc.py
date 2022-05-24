@@ -5,10 +5,13 @@ from dateutil.tz import UTC
 from pandas import DataFrame as DF, Index, Series
 
 
-def portfolio_midnight_filler(
-    portfolio_balances: Series, quote_rates: Series
-) -> Series:
+def portfolio_midnight_filler(portfolio_balances: Series, quote_rates: Series) -> DF:
     def find_closest_quote(date: datetime.datetime):
+        # For now, quote rates are not going as far back in time than portfolio
+        # balances, so just return 0 if no quote
+        if date < quote_rates.index[0]:
+            return 0
+
         earlier_date = date
         while True:
             try:
