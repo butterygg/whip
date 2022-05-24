@@ -23,19 +23,15 @@ def add_statistics(
 
         `returns` = ln(current_price / previous_price)
     """
-    returns = []
+    returns = [0]
+
     for i in range(1, len(df)):
-        # current price is df[i - 1] since `loc` descends the DF
         prev = df.loc[i - 1, column_name]
         current = df.loc[i, column_name]
         if prev == 0 or current == 0:
             returns.append(0)
         else:
-            returns.append(log(prev / current))
-    returns.append(0)
-    for i in range(1, len(df)):
-        # current price is df[i] since `loc` ascends the DF
-        returns.append(log(df.loc[i, column_name] / df.loc[i - 1, column_name]))
+            returns.append(log(current / prev))
     df["returns"] = returns
 
     """ end section
