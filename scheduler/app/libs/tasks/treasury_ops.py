@@ -62,37 +62,37 @@ def add_statistics(
 async def populate_hist_tres_balance(
     asset_trans_history: Dict[str, Any]
 ) -> Optional[Series]:
-    """ Return a Series of a given treasury's *partial*, historical token balance.
+    """Return a Series of a given treasury's *partial*, historical token balance.
 
-        The given `asset_trans_history` should be a response from
-        `libs.covalent.transfers.get_token_transfers_for_wallet`.
+    The given `asset_trans_history` should be a response from
+    `libs.covalent.transfers.get_token_transfers_for_wallet`.
 
-        Parameters
-        ---
-        asset_trans_history: Dict[str, Any]
-            A covalent response from their `transfers_v2` endpoint.
-            This should be obtained by using
-            `libs.covalent.transfers.get_token_transfers_for_wallet`
-        start: str
-            Date to query transfers from. This as well as `end` should be
-            formatted as `%Y-%m-%d`
-        end: str
-            Date to end transfer query
+    Parameters
+    ---
+    asset_trans_history: Dict[str, Any]
+        A covalent response from their `transfers_v2` endpoint.
+        This should be obtained by using
+        `libs.covalent.transfers.get_token_transfers_for_wallet`
+    start: str
+        Date to query transfers from. This as well as `end` should be
+        formatted as `%Y-%m-%d`
+    end: str
+        Date to end transfer query
 
-        Notes
-        ---
-        The historical token balancce of the given treasury is partial
-        because, naturaly, covalent's transfers_v2 endpoint only returns
-        historical transfers and doesn't return the balance at the time
-        of transfer.
-        
-        Thus, the balance for a given treasury can only be calculated for
-        the date of transfer from the covalent response.
+    Notes
+    ---
+    The historical token balancce of the given treasury is partial
+    because, naturaly, covalent's transfers_v2 endpoint only returns
+    historical transfers and doesn't return the balance at the time
+    of transfer.
 
-        ---
+    Thus, the balance for a given treasury can only be calculated for
+    the date of transfer from the covalent response.
 
-        the end date allows the historical query to end, returning the
-        historical balance from between the start and end dates.
+    ---
+
+    the end date allows the historical query to end, returning the
+    historical balance from between the start and end dates.
     """
     if not asset_trans_history:
         return None
@@ -209,7 +209,9 @@ def calculate_risk_contributions(
 
     summed_component_contributions = np.sum(component_contributions)
 
-    assert isclose(summed_component_contributions, std_dev[0][0], rel_tol=0.0001), "error in calculations"
+    assert isclose(
+        summed_component_contributions, std_dev[0][0], rel_tol=0.0001
+    ), "error in calculations"
     print(f"component_contributions: {component_contributions}")
 
     component_percentages = component_contributions / std_dev[0][0]
@@ -219,3 +221,32 @@ def calculate_risk_contributions(
         asset.risk_contribution = percentage
 
     return treasury
+
+
+def apply_spread_percentages(
+    asset_hist_balances: dict[str, DF],
+    spread_token_symbol: str,
+    spread_percentage: int,
+    start: str,
+) -> dict[str, DF]:
+    start_total = sum(
+        asset_hist_balance.loc[start].balance
+        for asset_hist_balance in asset_hist_balances.values()
+    )
+
+    if spread_token_symbol not in asset_hist_balances:
+        spread_token_hist_balance = next(iter(asset_hist_balances.values())).copy()
+        spread_token_hist_balance.balance = start_total * spread_percentage / 100.0
+
+        def downsize(asset_hist_balance: DF):
+            spread_asset_hist_balance = asset_hist_balance.copy()
+            spread_asset_hist_balance.balance *= (100 - spread_percentage) / 100.0
+            return spread_asset_hist_balance
+
+        spread_asset_hist_balances = {
+            symbol: downsize(asset_hist_balance)
+            for symbol, asset_hist_balance in asset_hist_balances.items()
+        }
+        spread_asset_hist_balances[spread_token_symbol] = spread_token_hist_balance
+
+        return spread_asset_hist_balances
