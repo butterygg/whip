@@ -1,6 +1,6 @@
 from datetime import datetime
 from dateutil import parser
-from math import log
+from math import log, isclose
 from typing import Any, Dict, List, Optional
 from functools import reduce
 
@@ -216,7 +216,7 @@ def calculate_risk_contributions(
 
     summed_component_contributions = np.sum(component_contributions)
 
-    assert summed_component_contributions == std_dev[0][0], "error in calculations"
+    assert isclose(summed_component_contributions, std_dev[0][0], rel_tol=0.0001), "error in calculations"
     print(f"component_contributions: {component_contributions}")
 
     component_percentages = component_contributions / std_dev[0][0]
