@@ -1,4 +1,7 @@
 from datetime import datetime
+from datetime import timedelta
+from dateutil.utils import today
+from dateutil.tz import UTC
 from functools import reduce
 from json import dumps
 from typing import Any
@@ -142,21 +145,6 @@ async def build_treasury_with_assets(
         await get_token_hist_prices(treasury)
     )
 
-    if not start:
-        from datetime import datetime
-        from datetime import timedelta
-        from dateutil.utils import today
-        from dateutil.tz import UTC
-        from time import mktime
-        if not end:
-            end: datetime = today(UTC)
-        else:
-            end = datetime.fromisoformat(end, tz=UTC)
-        start: datetime = end - timedelta(days=365 * 1)
-
-        start = start.isoformat()
-        end = end.isoformat()
-
     asset_hist_balances = await fill_asset_hist_balances(
         await get_sparse_asset_hist_balances(treasury),
         augmented_token_hist_prices,
@@ -190,6 +178,12 @@ def setup_periodic_tasks(sender, **kwargs):
 
 @celery_app.task
 def reload_treasuries_data():
+    end: datetime = today(UTC)
+    start: datetime = end - timedelta(days=365)
+
+    start = start.isoformat()
+    end = end.isoformat()
+
     for treasury_metadata in retrieve_treasuries_metadata():
         with db.pipeline() as pipe:
             treasury, \
