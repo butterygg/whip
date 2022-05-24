@@ -179,9 +179,13 @@ def setup_periodic_tasks(sender, **kwargs):
 def reload_treasuries_data():
     for treasury_metadata in retrieve_treasuries_metadata():
         with db.pipeline() as pipe:
-            treasury, augmented_token_hist_prices, asset_hist_balances = async_to_sync(
+            treasury, \
+            augmented_token_hist_prices, \
+            asset_hist_balances, \
+            augemented_total_balance \
+                = async_to_sync(
                 build_treasury_with_assets
-            )(*treasury_metadata, )
+            )(*treasury_metadata)
 
             for symbol, asset_hist_balance in asset_hist_balances.items():
                 store_asset_hist_balance(
