@@ -195,8 +195,8 @@ function App() {
         chartData.datasets[0],
         {
           label: "Diversified portfolio",
-          backgroundColor: "rgb(213, 175, 8)",
-          borderColor: "rgb(213, 175, 8)",
+          backgroundColor: "rgb(226, 97, 57)",
+          borderColor: "rgb(226, 97, 57)",
           data: Object.values(newData).map((x) => (x as number) / 1_000_000),
         },
       ],
@@ -208,9 +208,9 @@ function App() {
       value={{ address: address, startDate: startDate }}
     >
       <div>
-        <header className="p-2 bg-[#ddd] flex justify-between items-center">
-          <div className="w-[15em]"></div>
-          <img className="h-[100px]" src={logo} alt="logo" />
+        <header className="p-2 flex justify-between items-center">
+          <div className="m-3 w-[28em] p-2"></div>
+          <p className="text-6xl font-bold text-[#E1B76D]">WHIP</p>
           <input
             className="m-3 w-[28em] p-2"
             placeholder={address || "Address"}
@@ -222,8 +222,8 @@ function App() {
           ></input>
         </header>
         <div className="flex items-center justify-center">
-          <div className="bg-[#eee] w-2/3 m-10">
-            <div className="w-full bg-[#ddd] p-4 text-white  ">
+          <div className="w-2/3 m-10">
+            <div className="w-full bg-[#eee] p-4 text-white  ">
               <div className="flex items-center justify-center">
                 <Line
                   data={chartData}
@@ -250,7 +250,7 @@ function App() {
                 <div
                   className={`hover:cursor-pointer p-2 ${
                     startDate.getTime() === deltaDate(today, -1, 0, 0).getTime()
-                      ? "bg-[#d5af08b8] font-semibold"
+                      ? "bg-[#E26139] font-semibold text-white"
                       : "bg-white"
                   }`}
                   onClick={(el) => {
@@ -264,7 +264,7 @@ function App() {
                 <div
                   className={`hover:cursor-pointer p-2 ${
                     startDate.getTime() === deltaDate(today, 0, -3, 0).getTime()
-                      ? "bg-[#d5af08b8] font-semibold"
+                      ? "bg-[#E26139] font-semibold text-white"
                       : "bg-white"
                   }`}
                   onClick={() => {
@@ -278,7 +278,7 @@ function App() {
                 <div
                   className={`hover:cursor-pointer p-2 ${
                     startDate.getTime() === deltaDate(today, 0, -1, 0).getTime()
-                      ? "bg-[#d5af08b8] font-semibold"
+                      ? "bg-[#E26139] font-semibold text-white"
                       : "bg-white"
                   }`}
                   onClick={() => {
@@ -341,7 +341,7 @@ function KpisDisplay({
   const kpis = newKpis || baseKpis;
   return (
     <div className="mb-10 flex justify-between items-center">
-      <div className="bg-[#ddd] w-40 pb-4 pt-4 pl-6 pr-6 text-center">
+      <div className="bg-[#eee] w-40 pb-4 pt-4 pl-6 pr-6 text-center">
         {typeof kpis !== "undefined" && (
           <p
             className={
@@ -354,7 +354,7 @@ function KpisDisplay({
         )}
         <p>Total Value</p>
       </div>{" "}
-      <div className="bg-[#ddd] w-40 pb-4 pt-4 pl-6 pr-6 text-center">
+      <div className="bg-[#eee] w-40 pb-4 pt-4 pl-6 pr-6 text-center">
         {typeof kpis !== "undefined" && (
           <p
             className={
@@ -367,7 +367,7 @@ function KpisDisplay({
         )}
         <p>Volatility</p>
       </div>
-      <div className="bg-[#ddd] w-40 pb-4 pt-4 pl-6 pr-6 text-center">
+      <div className="bg-[#eee] w-40 pb-4 pt-4 pl-6 pr-6 text-center">
         {typeof kpis !== "undefined" && (
           <p
             className={
@@ -493,7 +493,7 @@ function Product({
           <img src={logo} className="h-20" />
           <div className="ml-4">
             <div className="text-2xl">{name}</div>
-            <div className="uppercase text-sm">
+            <div className="uppercase text-xs">
               <b>{provider}</b> · {description}
             </div>
             <div>
