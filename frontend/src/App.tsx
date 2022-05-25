@@ -238,6 +238,11 @@ function App() {
                         text: "Treasury holdings",
                       },
                     },
+                    elements: {
+                      point: {
+                        radius: 1,
+                      },
+                    },
                   }}
                 />
               </div>
@@ -252,7 +257,9 @@ function App() {
                     setStartDate(deltaDate(today, -1, 0, 0));
                   }}
                 >
-                  1 year
+                  {startDate.getTime() === deltaDate(today, -1, 0, 0).getTime()
+                    ? "Past year"
+                    : "1 year"}
                 </div>
                 <div
                   className={`hover:cursor-pointer p-2 ${
@@ -264,7 +271,9 @@ function App() {
                     setStartDate(deltaDate(today, 0, -3, 0));
                   }}
                 >
-                  3 months
+                  {startDate.getTime() === deltaDate(today, 0, -3, 0).getTime()
+                    ? "Past 3 months"
+                    : "3 months"}
                 </div>
                 <div
                   className={`hover:cursor-pointer p-2 ${
@@ -276,7 +285,9 @@ function App() {
                     setStartDate(deltaDate(today, 0, -1, 0));
                   }}
                 >
-                  1 month
+                  {startDate.getTime() === deltaDate(today, 0, -1, 0).getTime()
+                    ? "Past 1 month"
+                    : "1 month"}
                 </div>
               </div>
             </div>
