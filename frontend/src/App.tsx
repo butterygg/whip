@@ -212,7 +212,7 @@ function App() {
           <div className="w-[15em]"></div>
           <img className="h-[100px]" src={logo} alt="logo" />
           <input
-            className="m-3 w-[15em] p-2"
+            className="m-3 w-[28em] p-2"
             placeholder={address || "Address"}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
