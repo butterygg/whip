@@ -14,6 +14,20 @@ import {
   Legend,
 } from "chart.js";
 
+const TREASURIES: any = {
+  "0x1a9c8182c09f50c8318d769245bea52c32be35bc": "Uniswap",
+  "0x660F6D6c9BCD08b86B50e8e53B537F2B40f243Bd": "FWB",
+  "0x78605df79524164911c144801f41e9811b7db73d": "BitDAO",
+  "0x0BC3807Ec262cB779b38D65b38158acC3bfedE10": "NounsDAO",
+  "0x57a8865cfb1ecef7253c27da6b4bc3daee5be518": "Gitcoin DAO",
+  "0xde21f729137c5af1b01d73af1dc21effa2b8a0d6": "Gitcoin DAO",
+  "0xfe89cc7abb2c4183683ab71653c4cdc9b02d44b7": "ENS DAO",
+  "0x849d52316331967b6ff1198e5e32a0eb168d039d": "Gnosis DAO",
+  "0x0da0c3e52c977ed3cbc641ff02dd271c3ed55afe": "Gnosis DAO",
+  "0xec83f750adfe0e52a8b0dba6eeb6be5ba0bee535": "Gnosis DAO",
+  "0x54396b93c10c685a21c8b5610c15f82a54c9c22e": "Gnosis DAO",
+};
+
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -223,7 +237,7 @@ function App() {
         </header>
         <div className="flex items-center justify-center">
           <div className="w-2/3 m-10">
-            <div className="w-full bg-[#eee] p-4 text-white  ">
+            <div className="w-full p-4 text-white  ">
               <div className="flex items-center justify-center">
                 <Line
                   data={chartData}
@@ -235,7 +249,10 @@ function App() {
                       },
                       title: {
                         display: true,
-                        text: "Treasury holdings",
+                        text:
+                          address in TREASURIES
+                            ? `${TREASURIES[address]} treasury`
+                            : "Treasury holdings",
                       },
                     },
                     elements: {
@@ -246,7 +263,7 @@ function App() {
                   }}
                 />
               </div>
-              <div className="m-4 space-x-0.5 flex items-center justify-center text-gray-700 text-xs">
+              <div className="m-4 space-x-0.5 flex items-center justify-center text-gray-700 text-s">
                 <div
                   className={`hover:cursor-pointer p-2 ${
                     startDate.getTime() === deltaDate(today, -1, 0, 0).getTime()
@@ -286,7 +303,7 @@ function App() {
                   }}
                 >
                   {startDate.getTime() === deltaDate(today, 0, -1, 0).getTime()
-                    ? "Past 1 month"
+                    ? "Past month"
                     : "1 month"}
                 </div>
               </div>
