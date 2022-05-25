@@ -328,10 +328,13 @@ function App() {
                   <Product
                     key={index}
                     opened={index === openedProduct}
-                    toggle={() =>
-                      setOpenedProduct(
-                        index === openedProduct ? undefined : index
-                      )
+                    toggle={
+                      index === 0 && typeof baseKpis !== "undefined"
+                        ? () =>
+                            setOpenedProduct(
+                              index === openedProduct ? undefined : index
+                            )
+                        : () => {}
                     }
                     previewNewKpis={setNewKpis}
                     previewNewAssets={setNewAssets}
