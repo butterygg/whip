@@ -1,4 +1,5 @@
 from datetime import datetime
+from sys import dont_write_bytecode
 from dateutil import parser
 from math import log, isclose
 from typing import Any, Dict, List, Optional
@@ -229,24 +230,42 @@ def apply_spread_percentages(
     spread_percentage: int,
     start: str,
 ) -> dict[str, DF]:
-    start_total = sum(
+    start_balance = sum(
         asset_hist_balance.loc[start].balance
         for asset_hist_balance in asset_hist_balances.values()
+    )
+    start_balance_except_spread_token = sum(
+        asset_hist_balance.loc[start].balance
+        for symbol, asset_hist_balance in asset_hist_balances.items()
+        if symbol != spread_token_symbol
     )
 
     if spread_token_symbol not in asset_hist_balances:
         spread_token_hist_balance = next(iter(asset_hist_balances.values())).copy()
-        spread_token_hist_balance.balance = start_total * spread_percentage / 100.0
+        spread_token_hist_balance.balance = start_balance * spread_percentage / 100.0
+        downsize_factor = (100 - spread_percentage) / 100.0
 
-        def downsize(asset_hist_balance: DF):
-            spread_asset_hist_balance = asset_hist_balance.copy()
-            spread_asset_hist_balance.balance *= (100 - spread_percentage) / 100.0
-            return spread_asset_hist_balance
+    else:
+        spread_token_hist_balance = asset_hist_balances[spread_token_symbol]
+        spread_token_hist_balance.balance += start_balance * spread_percentage / 100.0
 
-        spread_asset_hist_balances = {
-            symbol: downsize(asset_hist_balance)
-            for symbol, asset_hist_balance in asset_hist_balances.items()
-        }
-        spread_asset_hist_balances[spread_token_symbol] = spread_token_hist_balance
+        downsize_factor = (
+            1
+            - spread_percentage
+            / 100.0
+            * start_balance
+            / start_balance_except_spread_token
+        )
 
-        return spread_asset_hist_balances
+    def downsize(asset_hist_balance: DF):
+        spread_asset_hist_balance = asset_hist_balance.copy()
+        spread_asset_hist_balance.balance *= downsize_factor
+        return spread_asset_hist_balance
+
+    spread_asset_hist_balances = {
+        symbol: downsize(asset_hist_balance)
+        for symbol, asset_hist_balance in asset_hist_balances.items()
+    }
+    spread_asset_hist_balances[spread_token_symbol] = spread_token_hist_balance
+
+    return spread_asset_hist_balances
