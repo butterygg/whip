@@ -152,8 +152,10 @@ def populate_bitquery_hist_eth_balance(eth_transfers: list[BitqueryTransfer]) ->
         dtype="float64",
     )
 
+def get_asset(treasury: Treasury, symbol: str):
+        return next(asset for asset in treasury.assets if asset.token_symbol == symbol)
 
-def calculate_risk_contributions(
+def get_returns_matrix(
     treasury: Treasury, augmented_token_hist_prices: Dict[str, DF], start: str, end: str
 ):
     hist_prices_items = [
@@ -182,14 +184,19 @@ def calculate_risk_contributions(
         .set_index("timestamp")
     )
 
-    def get_asset(symbol):
-        return next(asset for asset in treasury.assets if asset.token_symbol == symbol)
-
     # Remove ETH from matrix if not an actual portfolio asset
     try:
-        get_asset("ETH")
+        get_asset(treasury, "ETH")
     except StopIteration:
         returns_matrix.drop("ETH", axis=1, inplace=True)
+
+    return returns_matrix
+
+
+def calculate_risk_contributions(
+    treasury: Treasury, augmented_token_hist_prices: Dict[str, DF], start: str, end: str
+):
+    returns_matrix = get_returns_matrix(treasury, augmented_token_hist_prices, start, end)
 
     current_balances = {asset.token_symbol: asset.balance for asset in treasury.assets}
     weights = np.array(
@@ -218,7 +225,7 @@ def calculate_risk_contributions(
     component_percentages = component_contributions / std_dev[0][0]
 
     for symbol, percentage in zip(returns_matrix.columns, component_percentages[0]):
-        asset = get_asset(symbol)
+        asset = get_asset(treasury, symbol)
         asset.risk_contribution = percentage
 
     return treasury
