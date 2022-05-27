@@ -13,6 +13,7 @@ from .. import bitquery
 from ..storage_helpers import (
     store_asset_hist_balance,
     store_asset_hist_performance,
+    store_asset_correlations,
     retrieve_treasuries_metadata,
 )
 from . import db, celery_app
@@ -25,6 +26,7 @@ from .treasury_ops import (
     apply_spread_percentages,
     populate_bitquery_hist_eth_balance,
     populate_hist_tres_balance,
+    calculate_correlations,
     calculate_risk_contributions,
 )
 
@@ -359,4 +361,13 @@ def reload_treasuries_data():
                     asset_hist_balance.to_json(orient="records"),
                     provider=pipe,
                 )
+
+            store_asset_correlations(
+                treasury.address,
+                calculate_correlations(
+                    treasury, augmented_token_hist_prices, start, end
+                ).to_json(orient="index"),
+                provider=pipe,
+            )
+
             pipe.execute()

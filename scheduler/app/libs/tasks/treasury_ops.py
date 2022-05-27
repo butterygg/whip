@@ -159,7 +159,9 @@ def get_returns_matrix(
     treasury: Treasury, augmented_token_hist_prices: Dict[str, DF], start: str, end: str
 ):
     hist_prices_items = [
-        (symbol, hist_prices.set_index("timestamp").loc[start:end].reset_index())
+        # sorting index before querying by daterange to suppress PD Future Warning
+        # ; non-monotonic timeseries issue suppresed
+        (symbol, hist_prices.set_index("timestamp").sort_index().loc[start:end].reset_index())
         for symbol, hist_prices in augmented_token_hist_prices.items()
     ]
 
@@ -229,6 +231,14 @@ def calculate_risk_contributions(
         asset.risk_contribution = percentage
 
     return treasury
+
+
+def calculate_correlations(
+    treasury: Treasury, augmented_token_hist_prices: Dict[str, DF], start: str, end: str
+):
+    returns_matrix = get_returns_matrix(treasury, augmented_token_hist_prices, start, end)
+
+    return returns_matrix.corr()
 
 
 def apply_spread_percentages(
