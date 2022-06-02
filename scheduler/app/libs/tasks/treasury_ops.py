@@ -258,7 +258,7 @@ def apply_spread_percentages(
     start: str,
 ) -> dict[str, DF]:
     start_balance = sum(
-        asset_hist_balance.loc[start].balance
+        asset_hist_balance.set_index("timestamp").sort_index().loc[start].balance
         for asset_hist_balance in asset_hist_balances.values()
     )
     start_balance_except_spread_token = sum(
