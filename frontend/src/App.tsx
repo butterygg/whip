@@ -595,7 +595,7 @@ function Product({
               className=" py-4 px-8 bg-[#D5AF08] hover:bg-[#444] text-white font-bold"
               onClick={launchPreview}
             >
-              Review order
+              Run
             </button>
           </div>
         </div>
