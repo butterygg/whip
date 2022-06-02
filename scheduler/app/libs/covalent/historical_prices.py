@@ -20,7 +20,6 @@ async def get_historical_price_by_symbol(
         start_date = start_date.strftime("%Y-%m-%d")
 
     async with AsyncClient() as client:
-        # api.covalenthq.com/v1/pricing/historical/USD/UNI/?quote-currency=USD&format=JSON&from=2021-05-10&key=ckey_30f56650f3a544fe8803d522cb0
         resp = await client.get(
             f"https://api.covalenthq.com/v1/pricing/historical/"
             + f"{quote}/{token_symbol}/?key=ckey_{getenv('COVALENT_KEY')}"
@@ -29,7 +28,6 @@ async def get_historical_price_by_symbol(
             + f"&from={start_date}"
         )
 
-        # print("url: ", resp.url)
         return resp.json()["data"]
 
 

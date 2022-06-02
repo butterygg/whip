@@ -1,7 +1,6 @@
-from datetime import datetime
-from sys import dont_write_bytecode
 from dateutil import parser
 from math import log, isclose
+from traceback import print_exception
 from typing import Any, Dict, List, Optional
 from functools import reduce
 
@@ -19,6 +18,10 @@ def add_statistics(
     index: Optional[str] = None,
 ):
     df = df.reset_index()
+    try:
+        symbol = df["symbol"][0]
+    except KeyError as _:
+        symbol = "Balances"
 
     """ `returns` calculation section
 
@@ -32,7 +35,14 @@ def add_statistics(
         if prev == 0 or current == 0:
             returns.append(0)
         else:
-            returns.append(log(current / prev))
+            _return: float = None
+            try:
+                _return = log(current / prev)
+            except ValueError as e:
+                print(f"unable to set return (ln(curr/prev)) for {symbol}")
+                print_exception(type(e), e, e.__traceback__)
+                print(f"curr: {current}, prev: {prev}")
+            returns.append(_return)
     df["returns"] = returns
 
     """ end section
@@ -222,7 +232,7 @@ def calculate_risk_contributions(
     assert isclose(
         summed_component_contributions, std_dev[0][0], rel_tol=0.0001
     ), "error in calculations"
-    print(f"component_contributions: {component_contributions}")
+    # print(f"component_contributions: {component_contributions}")
 
     component_percentages = component_contributions / std_dev[0][0]
 
