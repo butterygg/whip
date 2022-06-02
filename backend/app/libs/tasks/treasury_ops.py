@@ -1,6 +1,7 @@
+# pylint: disable=too-many-locals
 from functools import reduce
 from math import isclose, log
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import numpy as np
 from dateutil import parser
@@ -12,55 +13,43 @@ from ..types import Treasury
 
 
 def add_statistics(
-    df: DF,
+    dataframe: DF,
     column_name: str = "price",
     reverse: bool = True,
     index: Optional[str] = None,
 ):
-    df = df.reset_index()
+    dataframe = dataframe.reset_index()
 
-    """ `returns` calculation section
-
-        `returns` = ln(current_price / previous_price)
-    """
+    # `returns` = ln(current_price / previous_price)
     returns = [0]
 
-    for i in range(1, len(df)):
-        prev = df.loc[i - 1, column_name]
-        current = df.loc[i, column_name]
+    for i in range(1, len(dataframe)):
+        prev = dataframe.loc[i - 1, column_name]
+        current = dataframe.loc[i, column_name]
         if prev == 0 or current == 0:
             returns.append(0)
         else:
             returns.append(log(current / prev))
-    df["returns"] = returns
+    dataframe["returns"] = returns
 
-    """ end section
-    """
-
-    """ rolling std_dev of `returns` section
-
-        period/window can be conifgurable, 7 days was set
-    """
-
+    # rolling std_dev of `returns` section
+    # period/window can be conifgurable, 7 days was set
     window = 7
-    rolling_window = df["returns"].rolling(window)
+    rolling_window = dataframe["returns"].rolling(window)
     std_dev = rolling_window.std(ddof=0)
-    df["std_dev"] = std_dev
-
-    """ end section
-    """
+    dataframe["std_dev"] = std_dev
 
     if index is not None:
-        df = df.set_index(index)
+        dataframe = dataframe.set_index(index)
 
     if reverse:
-        return df.iloc[::-1]
+        return dataframe.iloc[::-1]
 
-    return df
+    return dataframe
 
 
 async def populate_hist_tres_balance(
-    asset_trans_history: Dict[str, Any]
+    asset_trans_history: dict[str, Any]
 ) -> Optional[Series]:
     """Return a Series of a given treasury's *partial*, historical token balance.
 
@@ -97,7 +86,7 @@ async def populate_hist_tres_balance(
     if not asset_trans_history:
         return None
     blocks = asset_trans_history["items"]
-    balances: List[float] = []
+    balances: list[float] = []
     timeseries = []
     address = ""
     symbol = ""
@@ -157,7 +146,7 @@ def get_asset(treasury: Treasury, symbol: str):
 
 
 def get_returns_matrix(
-    treasury: Treasury, augmented_token_hist_prices: Dict[str, DF], start: str, end: str
+    treasury: Treasury, augmented_token_hist_prices: dict[str, DF], start: str, end: str
 ):
     hist_prices_items = [
         # sorting index before querying by daterange to suppress PD Future Warning
@@ -203,7 +192,7 @@ def get_returns_matrix(
 
 
 def calculate_risk_contributions(
-    treasury: Treasury, augmented_token_hist_prices: Dict[str, DF], start: str, end: str
+    treasury: Treasury, augmented_token_hist_prices: dict[str, DF], start: str, end: str
 ):
     returns_matrix = get_returns_matrix(
         treasury, augmented_token_hist_prices, start, end
@@ -243,7 +232,7 @@ def calculate_risk_contributions(
 
 
 def calculate_correlations(
-    treasury: Treasury, augmented_token_hist_prices: Dict[str, DF], start: str, end: str
+    treasury: Treasury, augmented_token_hist_prices: dict[str, DF], start: str, end: str
 ):
     returns_matrix = get_returns_matrix(
         treasury, augmented_token_hist_prices, start, end

@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 from pandas import DataFrame as DF
 from pandas import Series, to_datetime
 
+from ... import db
+from ...celery_main import app as celery_app
 from .. import bitquery, coingecko, covalent
 from ..pd_inter_calc import portfolio_midnight_filler
 from ..storage_helpers import (
@@ -18,7 +20,6 @@ from ..storage_helpers import (
     store_asset_hist_performance,
 )
 from ..types import ERC20, Treasury
-from . import celery_app, db
 from .treasury_ops import (
     add_statistics,
     apply_spread_percentages,
@@ -38,12 +39,12 @@ async def make_treasury(treasury_address: str, chain_id: int) -> Treasury:
 
 
 async def get_token_hist_prices(treasury: Treasury) -> dict[str, DF]:
-    asset_addresses_including_ETH = {
+    asset_addresses_including_eth = {
         (a.token_symbol, a.token_address) for a in treasury.assets
     } | {("ETH", "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")}
     maybe_hist_prices = {
         token_symbol: await coingecko.get_coin_hist_price(token_address, token_symbol)
-        for token_symbol, token_address in asset_addresses_including_ETH
+        for token_symbol, token_address in asset_addresses_including_eth
     }
     hist_prices = {
         symbol: mhp for symbol, mhp in maybe_hist_prices.items() if mhp is not None
@@ -123,9 +124,7 @@ async def fill_asset_hist_balances(
     }
 
 
-def augment_total_balance(
-    treasury: Treasury, asset_hist_balances: dict[str, DF]
-) -> Series:
+def augment_total_balance(asset_hist_balances: dict[str, DF]) -> Series:
     hist_total_balance = reduce(
         lambda acc, item: acc.add(item, fill_value=0),
         (balance["balance"] for balance in asset_hist_balances.values()),
@@ -211,7 +210,7 @@ def augment_treasury(
     start: str,
     end: str,
 ) -> tuple[Treasury, Series]:
-    augmented_total_balance = augment_total_balance(treasury, asset_hist_balances)
+    augmented_total_balance = augment_total_balance(asset_hist_balances)
     augmented_treasury = calculate_risk_contributions(
         treasury, augmented_token_hist_prices, start, end
     )
@@ -224,8 +223,6 @@ def augment_spread_treasury(
     augmented_token_hist_prices: dict[str, DF],
     start: str,
     end: str,
-    spread_token_symbol: str,
-    spread_percentage: int,
 ) -> tuple[Treasury, Series]:
     spread_treasury.usd_total = sum(
         b.loc[end].balance for b in spread_asset_hist_balances.values()
@@ -233,9 +230,7 @@ def augment_spread_treasury(
     for asset in spread_treasury.assets:
         asset.balance = spread_asset_hist_balances[asset.token_symbol].loc[end].balance
 
-    augmented_total_balance = augment_total_balance(
-        spread_treasury, spread_asset_hist_balances
-    )
+    augmented_total_balance = augment_total_balance(spread_asset_hist_balances)
     augmented_spread_treasury = calculate_risk_contributions(
         spread_treasury, augmented_token_hist_prices, start, end
     )
@@ -298,8 +293,6 @@ async def build_spread_treasury_with_assets(
         augmented_token_hist_prices,
         start,
         end,
-        spread_token_symbol,
-        spread_percentage,
     )
 
     return (
@@ -311,7 +304,7 @@ async def build_spread_treasury_with_assets(
 
 
 @celery_app.on_after_finalize.connect
-def setup_periodic_tasks(sender, **kwargs):
+def setup_periodic_tasks(sender, **_):
     sender.add_periodic_task(
         30.0, reload_treasuries_data.s(), name="reload treasuries data"
     )
@@ -331,7 +324,7 @@ def reload_treasuries_data():
                 treasury,
                 augmented_token_hist_prices,
                 asset_hist_balances,
-                augemented_total_balance,
+                _,
             ) = async_to_sync(build_treasury_with_assets)(
                 *treasury_metadata, start, end
             )
