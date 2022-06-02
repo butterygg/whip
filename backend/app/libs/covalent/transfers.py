@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code
 import json
 from os import getenv
 from typing import Any, Dict, Optional
@@ -6,7 +7,7 @@ import dateutil
 from httpx import AsyncClient, Timeout
 from pytz import UTC
 
-from .. import db
+from ... import db
 
 CACHE_HASH = "covalent_transfers"
 CACHE_KEY_TEMPLATE = "{treasury_address}_{contract_address}_{chain_id}_{date}"

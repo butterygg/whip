@@ -2,14 +2,15 @@ import datetime
 import json
 from json.decoder import JSONDecodeError
 from time import sleep
-from typing import List, Tuple, Union
 
 import dateutil.tz
 import dateutil.utils
 from billiard.pool import MaybeEncodingError
 from httpx import AsyncClient, Timeout
 
-from .. import db
+from ... import db
+
+COINGECKO_API_URL = "https://api.coingecko.com/api/v3"
 
 
 async def get_coin_list():
@@ -54,13 +55,17 @@ async def get_coin_hist_price(
             contract_address = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
         try:
             resp = await client.get(
-                f"https://api.coingecko.com/api/v3/coins/ethereum/contract/{contract_address}/market_chart/range?vs_currency=usd&from={start_date.timestamp()}&to={end_date.timestamp()}",
+                COINGECKO_API_URL
+                + f"/coins/ethereum/contract/{contract_address}/market_chart/range"
+                + f"?vs_currency=usd&from={start_date.timestamp()}&to={end_date.timestamp()}",
                 timeout=timeout,
             )
         except MaybeEncodingError:
             sleep(5)
             resp = await client.get(
-                f"https://api.coingecko.com/api/v3/coins/ethereum/contract/{contract_address}/market_chart/range?vs_currency=usd&from={start_date.timestamp()}&to={end_date.timestamp()}",
+                COINGECKO_API_URL
+                + f"/coins/ethereum/contract/{contract_address}/market_chart/range"
+                + f"?vs_currency=usd&from={start_date.timestamp()}&to={end_date.timestamp()}",
                 timeout=timeout,
             )
         sleep(5)

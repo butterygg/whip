@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List
 
 
 @dataclass
@@ -14,7 +13,7 @@ class ERC20:
 
 @dataclass
 class Quote:
-    ts: datetime
+    timestamp: datetime
     quote_rate: float
 
 
@@ -23,14 +22,14 @@ class HistoricalPrice:
     token_address: str
     token_name: str
     token_symbol: str
-    quotes: List[Quote]
+    quotes: list[Quote]
 
 
 @dataclass
 class Treasury:
     address: str
-    assets: List[ERC20]
-    historical_prices: List[HistoricalPrice]
+    assets: list[ERC20]
+    historical_prices: list[HistoricalPrice]
     usd_total: float = field(init=False)
 
     def __post_init__(self):

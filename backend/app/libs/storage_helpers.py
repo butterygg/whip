@@ -3,7 +3,7 @@ from typing import Any, Union
 
 import redis
 
-from . import db
+from .. import db
 
 CHAIN_ID = 1
 
@@ -23,12 +23,12 @@ BALANCES_KEY_TEMPLATE = "{address}_{symbol}"
 
 
 def store_hash_set(
-    set: str,
+    _hash: str,
     key: str,
     value: Any,
     provider: Union[redis.Redis, redis.client.Pipeline] = db,
 ):
-    provider.hset(set, key, value)
+    provider.hset(_hash, key, value)
 
 
 def store_asset_hist_balance(

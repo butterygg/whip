@@ -1,12 +1,11 @@
 from datetime import datetime
-from typing import Any, Dict, List
 
 from dateutil.tz import UTC
 from pandas import DataFrame as DF
 from pandas import MultiIndex, to_datetime
 
 
-def coingecko_hist_df(contract_address: str, symbol: str, resp: List[List[int]]) -> DF:
+def coingecko_hist_df(contract_address: str, symbol: str, resp: list[list[int]]) -> DF:
     """Return a DataFrame representation of a Coingecko token price timeseries.
 
     Parameters

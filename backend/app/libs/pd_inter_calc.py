@@ -1,4 +1,5 @@
 import datetime
+from typing import Optional
 
 from dateutil.tz import UTC
 from dateutil.utils import today
@@ -6,7 +7,9 @@ from pandas import DataFrame as DF
 from pandas import Index, Series
 
 
-def portfolio_midnight_filler(portfolio_balances: Series, quote_rates: Series) -> DF:
+def portfolio_midnight_filler(
+    portfolio_balances: Series, quote_rates: Series
+) -> Optional[DF]:
     def find_closest_quote(date: datetime.datetime):
         # For now, quote rates are not going as far back in time than portfolio
         # balances, so just return 0 if no quote
@@ -26,7 +29,7 @@ def portfolio_midnight_filler(portfolio_balances: Series, quote_rates: Series) -
     rows = list(portfolio_balances.to_dict().items())
     index = 0
     if len(rows) < 2:
-        return
+        return None
 
     for balance_change_datetime, balance in rows:
         curr_date: datetime.datetime = balance_change_datetime[0].replace(

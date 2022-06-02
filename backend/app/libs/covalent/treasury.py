@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code
 import json
 from os import getenv
 from typing import Any, Dict, List, Optional
@@ -6,7 +7,7 @@ import dateutil
 from httpx import AsyncClient, Timeout
 from pytz import UTC
 
-from .. import db
+from ... import db
 from ..types import ERC20, HistoricalPrice, Quote, Treasury
 
 CACHE_HASH = "covalent_treasury"

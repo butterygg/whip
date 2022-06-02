@@ -1,3 +1,4 @@
+# pylint: disable=invalid-name
 import os
 
 if "REDIS_TLS_URL" in os.environ:

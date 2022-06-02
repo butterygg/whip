@@ -1,7 +1,5 @@
-from .. import celery_app, db
 from ..coingecko import coingecko_hist_df, get_coin_hist_price, get_coin_list
 from ..covalent import (
-    get_historical_price_by_symbol,
     get_token_transfers_for_wallet,
     get_treasury,
     get_treasury_portfolio,

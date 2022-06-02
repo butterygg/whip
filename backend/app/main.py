@@ -1,5 +1,5 @@
 import datetime
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from typing import Iterable, Literal, TypeVar, Union
 
 import dateutil
@@ -47,7 +47,7 @@ class Portfolio:
         cls,
         treasury: Treasury,
         augmented_token_hist_prices,
-        asset_hist_balances,
+        asset_hist_balances,  # pylint: disable=unused-argument
         augmented_total_balance,
         start: str,
         end: str,
@@ -93,7 +93,7 @@ class Portfolio:
 
 
 @app.get("/portfolio/{address}/{start}")
-async def portfolio(address: str, start=str):
+async def get_portfolio(address: str, start=str):
     end_date = dateutil.utils.today(UTC) - datetime.timedelta(days=1)
     end = end_date.strftime("%Y-%m-%d")
 
