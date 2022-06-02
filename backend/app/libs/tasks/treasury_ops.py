@@ -1,13 +1,14 @@
-from dateutil import parser
-from math import log, isclose
-from typing import Any, Dict, List, Optional
 from functools import reduce
+from math import isclose, log
+from typing import Any, Dict, List, Optional
 
 import numpy as np
-from pandas import DataFrame as DF, MultiIndex, Series
+from dateutil import parser
+from pandas import DataFrame as DF
+from pandas import MultiIndex, Series
 
-from ..types import Treasury
 from ..bitquery import BitqueryTransfer
+from ..types import Treasury
 
 
 def add_statistics(

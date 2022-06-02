@@ -1,13 +1,13 @@
 import json
-import dateutil
+import os
 from dataclasses import dataclass
 from datetime import datetime
-import os
+
+import dateutil
 from httpx import AsyncClient
 from pytz import UTC
 
 from .. import db
-
 
 BITQUERY_API_KEY = os.environ["BITQUERY_API_KEY"]
 ETH_QUERY_TEMPLATE = """

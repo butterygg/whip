@@ -1,6 +1,5 @@
 from celery import Celery
 
-
 app = Celery(
     "whip_celery",
     include=["app.libs.tasks"],

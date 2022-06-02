@@ -1,12 +1,13 @@
 import json
-import dateutil
 from os import getenv
 from typing import Any, Dict, List, Optional
+
+import dateutil
 from httpx import AsyncClient, Timeout
 from pytz import UTC
 
 from .. import db
-from ..types import ERC20, Quote, Treasury, HistoricalPrice
+from ..types import ERC20, HistoricalPrice, Quote, Treasury
 
 CACHE_HASH = "covalent_treasury"
 CACHE_KEY_TEMPLATE = "{address}_{chain_id}_{date}"

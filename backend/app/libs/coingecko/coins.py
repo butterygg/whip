@@ -1,14 +1,13 @@
+import datetime
 import json
 from json.decoder import JSONDecodeError
 from time import sleep
 from typing import List, Tuple, Union
 
+import dateutil.tz
+import dateutil.utils
 from billiard.pool import MaybeEncodingError
 from httpx import AsyncClient, Timeout
-import json
-import dateutil.utils
-import dateutil.tz
-import datetime
 
 from .. import db
 

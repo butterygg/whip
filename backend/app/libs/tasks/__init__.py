@@ -1,12 +1,11 @@
-from .. import db, celery_app
-from ..coingecko import get_coin_list, get_coin_hist_price, coingecko_hist_df
+from .. import celery_app, db
+from ..coingecko import coingecko_hist_df, get_coin_hist_price, get_coin_list
 from ..covalent import (
-    get_treasury_portfolio,
-    get_treasury,
-    get_token_transfers_for_wallet,
     get_historical_price_by_symbol,
+    get_token_transfers_for_wallet,
+    get_treasury,
+    get_treasury_portfolio,
 )
 from ..pd_inter_calc import portfolio_midnight_filler
-
 from ..types import Treasury
 from .get_assets import reload_treasuries_data, setup_periodic_tasks

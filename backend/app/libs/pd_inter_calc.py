@@ -1,8 +1,9 @@
 import datetime
-from dateutil.utils import today
-from dateutil.tz import UTC
 
-from pandas import DataFrame as DF, Index, Series
+from dateutil.tz import UTC
+from dateutil.utils import today
+from pandas import DataFrame as DF
+from pandas import Index, Series
 
 
 def portfolio_midnight_filler(portfolio_balances: Series, quote_rates: Series) -> DF:
