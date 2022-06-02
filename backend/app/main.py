@@ -1,9 +1,10 @@
 import datetime
+from dataclasses import asdict, dataclass, field
 from typing import Iterable, Literal, TypeVar, Union
+
 import dateutil
-from pytz import UTC
 from fastapi import FastAPI
-from dataclasses import dataclass, asdict, field
+from pytz import UTC
 
 from .libs.tasks import get_assets
 from .libs.types import Treasury

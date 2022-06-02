@@ -1,33 +1,31 @@
-from datetime import datetime
-from datetime import timedelta
-from dateutil.utils import today
-from dateutil.tz import UTC
+from datetime import datetime, timedelta
 from functools import reduce
 from json import dumps
 
 from asgiref.sync import async_to_sync
+from dateutil.tz import UTC
+from dateutil.utils import today
 from dotenv import load_dotenv
-from pandas import DataFrame as DF, Series, to_datetime
+from pandas import DataFrame as DF
+from pandas import Series, to_datetime
 
-from .. import bitquery
+from .. import bitquery, coingecko, covalent
+from ..pd_inter_calc import portfolio_midnight_filler
 from ..storage_helpers import (
+    retrieve_treasuries_metadata,
+    store_asset_correlations,
     store_asset_hist_balance,
     store_asset_hist_performance,
-    store_asset_correlations,
-    retrieve_treasuries_metadata,
 )
-from . import db, celery_app
-from ..pd_inter_calc import portfolio_midnight_filler
 from ..types import ERC20, Treasury
-from .. import coingecko
-from .. import covalent
+from . import celery_app, db
 from .treasury_ops import (
     add_statistics,
     apply_spread_percentages,
-    populate_bitquery_hist_eth_balance,
-    populate_hist_tres_balance,
     calculate_correlations,
     calculate_risk_contributions,
+    populate_bitquery_hist_eth_balance,
+    populate_hist_tres_balance,
 )
 
 load_dotenv()

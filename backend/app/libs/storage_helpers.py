@@ -1,9 +1,9 @@
-from typing import Any, Union
-import redis
 import json
+from typing import Any, Union
+
+import redis
 
 from . import db
-
 
 CHAIN_ID = 1
 

@@ -12,8 +12,9 @@ async def get_historical_price_by_symbol(
 ) -> Dict[str, Any]:
     if type(start_date) == tuple:
         from datetime import timedelta
-        from dateutil.utils import today
+
         from dateutil.tz import UTC
+        from dateutil.utils import today
 
         end_date = today(UTC)
         start_date = end_date - timedelta(days=365 * start_date[0])

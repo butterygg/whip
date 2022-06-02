@@ -1,8 +1,9 @@
 from datetime import datetime
-from dateutil.tz import UTC
 from typing import Any, Dict, List
 
-from pandas import DataFrame as DF, MultiIndex, to_datetime
+from dateutil.tz import UTC
+from pandas import DataFrame as DF
+from pandas import MultiIndex, to_datetime
 
 
 def coingecko_hist_df(contract_address: str, symbol: str, resp: List[List[int]]) -> DF:
