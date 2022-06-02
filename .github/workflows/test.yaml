@@ -1,0 +1,54 @@
+name: Test
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+
+env:
+  BITQUERY_API_KEY: dummy
+  COVALENT_KEY: dummy
+  PYTHON_VERSION: 3.10.1
+  NODE_VERSION: 16.13.0
+
+jobs:
+  javascript-checks:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        working-directory: ./frontend
+        run: npm ci --dev
+      - name: Typescript check
+        working-directory: ./frontend
+        run: npx tsc
+      - name: Eslint check
+        working-directory: ./frontend
+        run: npx eslint .
+      - name: Prettier check
+        working-directory: ./frontend
+        run: npx prettier --check .
+
+  python-checks:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v3
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+      - name: Install
+        working-directory: ./backend
+        run: pip install -r dev-requirements.txt
+      - name: Pylint check
+        working-directory: ./backend
+        run: pylint $(find . -type f -path '*.py')
+      - name: Black check
+        working-directory: ./backend
+        run: black --check .
+      - name: Isort check
+        working-directory: ./backend
+        run: isort --check .
