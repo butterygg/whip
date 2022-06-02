@@ -1,5 +1,3 @@
-from datetime import datetime
-from sys import dont_write_bytecode
 from dateutil import parser
 from math import log, isclose
 from typing import Any, Dict, List, Optional
@@ -152,8 +150,10 @@ def populate_bitquery_hist_eth_balance(eth_transfers: list[BitqueryTransfer]) ->
         dtype="float64",
     )
 
+
 def get_asset(treasury: Treasury, symbol: str):
-        return next(asset for asset in treasury.assets if asset.token_symbol == symbol)
+    return next(asset for asset in treasury.assets if asset.token_symbol == symbol)
+
 
 def get_returns_matrix(
     treasury: Treasury, augmented_token_hist_prices: Dict[str, DF], start: str, end: str
@@ -161,7 +161,13 @@ def get_returns_matrix(
     hist_prices_items = [
         # sorting index before querying by daterange to suppress PD Future Warning
         # ; non-monotonic timeseries issue suppresed
-        (symbol, hist_prices.set_index("timestamp").sort_index().loc[start:end].reset_index())
+        (
+            symbol,
+            hist_prices.set_index("timestamp")
+            .sort_index()
+            .loc[start:end]
+            .reset_index(),
+        )
         for symbol, hist_prices in augmented_token_hist_prices.items()
     ]
 
@@ -198,7 +204,9 @@ def get_returns_matrix(
 def calculate_risk_contributions(
     treasury: Treasury, augmented_token_hist_prices: Dict[str, DF], start: str, end: str
 ):
-    returns_matrix = get_returns_matrix(treasury, augmented_token_hist_prices, start, end)
+    returns_matrix = get_returns_matrix(
+        treasury, augmented_token_hist_prices, start, end
+    )
 
     current_balances = {asset.token_symbol: asset.balance for asset in treasury.assets}
     weights = np.array(
@@ -236,7 +244,9 @@ def calculate_risk_contributions(
 def calculate_correlations(
     treasury: Treasury, augmented_token_hist_prices: Dict[str, DF], start: str, end: str
 ):
-    returns_matrix = get_returns_matrix(treasury, augmented_token_hist_prices, start, end)
+    returns_matrix = get_returns_matrix(
+        treasury, augmented_token_hist_prices, start, end
+    )
 
     return returns_matrix.corr()
 
