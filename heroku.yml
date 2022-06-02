@@ -4,7 +4,7 @@ setup:
       as: REDIS
 build:
   docker:
-    web: scheduler/Dockerfile
+    web: backend/Dockerfile
 run:
   web: /start.sh
   worker:

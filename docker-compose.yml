@@ -8,9 +8,9 @@ services:
       - 6379:6379
   api:
     profiles: ["backend"]
-    image: butter_whip/scheduler:dev
+    image: butter_whip/backend:dev
     build:
-      context: ./scheduler
+      context: ./backend
       args:
         TAG: python3.9
     ports:
@@ -21,15 +21,15 @@ services:
       - redis
       - sched
     env_file:
-      - scheduler/app.env
+      - backend/app.env
     volumes:
-      - ./scheduler/app/:/app/app/
+      - ./backend/app/:/app/app/
     command: /start-reload.sh
   sched:
     profiles: ["backend"]
-    image: butter_whip/scheduler:dev
+    image: butter_whip/backend:dev
     build:
-      context: ./scheduler
+      context: ./backend
       args:
         TAG: python3.9
     networks:
@@ -37,9 +37,9 @@ services:
     depends_on:
       - redis
     env_file:
-      - scheduler/app.env
+      - backend/app.env
     volumes:
-      - ./scheduler/app/:/app/app/
+      - ./backend/app/:/app/app/
     command: "celery -A app.celery_main worker --concurrency=1 -l INFO --pidfile= --logfile=/var/log/celery/%n%I.log"
   frontend:
     profiles: ["frontend"]
