@@ -16,7 +16,7 @@ def store_treasury_metadata(address: str, chain_id: int = CHAIN_ID):
 
 
 def retrieve_treasuries_metadata() -> list[tuple[str, int]]:
-    return [tuple(json.loads(t)) for t in db.lrange("treasuries", 0, -1)]
+    return [tuple(json.loads(t).values()) for t in db.lrange("treasuries", 0, -1)]
 
 
 BALANCES_KEY_TEMPLATE = "{address}_{symbol}"
