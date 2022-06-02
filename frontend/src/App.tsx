@@ -14,7 +14,7 @@ import {
   Legend,
 } from "chart.js";
 
-const TREASURIES: any = {
+const TREASURIES: Record<string, string> = {
   "0x1a9c8182c09f50c8318d769245bea52c32be35bc": "Uniswap",
   "0x660F6D6c9BCD08b86B50e8e53B537F2B40f243Bd": "FWB",
   "0x78605df79524164911c144801f41e9811b7db73d": "BitDAO",
@@ -270,7 +270,7 @@ function App() {
                       ? "bg-[#E26139] font-semibold text-white"
                       : "bg-white"
                   }`}
-                  onClick={(el) => {
+                  onClick={() => {
                     setStartDate(deltaDate(today, -1, 0, 0));
                   }}
                 >
@@ -328,14 +328,12 @@ function App() {
                   <Product
                     key={index}
                     opened={index === openedProduct}
-                    toggle={
-                      index === 0 && typeof baseKpis !== "undefined"
-                        ? () =>
-                            setOpenedProduct(
-                              index === openedProduct ? undefined : index
-                            )
-                        : () => {}
-                    }
+                    toggle={() => {
+                      if (index === 0 && typeof baseKpis !== "undefined")
+                        setOpenedProduct(
+                          index === openedProduct ? undefined : index
+                        );
+                    }}
                     previewNewKpis={setNewKpis}
                     previewNewAssets={setNewAssets}
                     previewNewChartData={previewNewChartData}
@@ -543,7 +541,7 @@ function Product({
           <div className="p-4 space-y-2">
             <h3 className="font-bold">You swap</h3>
             <div className="flex items-center justify-between">
-              <span className="uppercase">Asset %</span>
+              <span className="uppercase">Asset{"\u00A0"}%</span>
               <span>
                 <input
                   className="w-[3em] p-2 text-right"
@@ -557,7 +555,7 @@ function Product({
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="uppercase">Value $</span>
+              <span className="uppercase">Value{"\u00A0"}$</span>
               <span>
                 <input
                   className="p-2 text-right"
@@ -580,7 +578,7 @@ function Product({
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="uppercase">Value $</span>
+              <span className="uppercase">Value{"\u00A0"}$</span>
               <span>
                 <input
                   className="p-2 text-right bg-[#ddd]"
