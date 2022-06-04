@@ -22,7 +22,7 @@ async def get_treasury_portfolio(
     if db.hexists(CACHE_HASH, cache_key):
         return json.loads(db.hget(CACHE_HASH, cache_key))
 
-    timeout = Timeout(10.0, read=15.0, connect=30.0)
+    timeout = Timeout(10.0, read=30.0, connect=45.0)
     async with AsyncClient(timeout=timeout) as client:
         resp = await client.get(
             f"https://api.covalenthq.com/v1/{chain_id}/address/{treasury_address}/"
@@ -55,7 +55,7 @@ async def get_treasury(portfolio: Dict[str, Any]) -> Treasury:
             )
         )
 
-    # These tokens do don receive a valid response from covalent's
+    # These tokens don't receive a valid response from covalent's
     # portfolio balances. So we blacklist them
     blacklist = [
         "0x6a113e4caa8aa29c02e535580027a1a3203f43fb"  # mEth

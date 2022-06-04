@@ -54,13 +54,17 @@ async def get_eth_transactions(address: str) -> list[BitqueryTransfer]:
                     json={"query": ETH_QUERY_TEMPLATE.replace("$address", address)},
                 )
                 resp.raise_for_status()
-                return resp.json()["data"]["ethereum"]["address"][0]["balances"][0][
-                    "history"
-                ]
+                try:
+                  return resp.json()["data"]["ethereum"]["address"][0]["balances"][0][
+                      "history"
+                  ]
+                except TypeError as e:
+                  return None
 
         balance_hist_data = await get_balance_hist_data()
         db.hset(CACHE_HASH, cache_key, json.dumps(balance_hist_data))
-
+    if not balance_hist_data:
+      return None 
     return [
         BitqueryTransfer(
             dateutil.parser.parse(hist_item["timestamp"]),

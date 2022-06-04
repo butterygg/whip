@@ -94,7 +94,8 @@ async def get_sparse_asset_hist_balances(treasury: Treasury) -> dict[str, Series
     return {
         symbol: hist
         for symbol, hist in maybe_sparse_asset_hist_balances.items()
-        if hist is not None and not hist.empty
+        if hist is not None
+            and not hist.empty
     }
 
 

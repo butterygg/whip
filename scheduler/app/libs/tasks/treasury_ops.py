@@ -148,6 +148,9 @@ async def populate_hist_tres_balance(
 
 
 def populate_bitquery_hist_eth_balance(eth_transfers: list[BitqueryTransfer]) -> Series:
+    # return an empty Series if there are no ETH/native token transfers
+    if not eth_transfers: return Series(dtype="object")
+
     index = MultiIndex.from_tuples(
         [
             (bt.timestamp, "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "ETH")
