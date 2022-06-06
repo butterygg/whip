@@ -1,11 +1,9 @@
 import json
 from json.decoder import JSONDecodeError
 from time import sleep
-from typing import List, Tuple, Union
 
 from billiard.pool import MaybeEncodingError
 from httpx import AsyncClient, Timeout
-import json
 import dateutil.utils
 import dateutil.tz
 import datetime
@@ -58,7 +56,7 @@ async def get_coin_hist_price(
                 f"https://api.coingecko.com/api/v3/coins/ethereum/contract/{contract_address}/market_chart/range?vs_currency=usd&from={start_date.timestamp()}&to={end_date.timestamp()}",
                 timeout=timeout,
             )
-        except MaybeEncodingError as e:
+        except MaybeEncodingError:
             sleep(5)
             resp = await client.get(
                 f"https://api.coingecko.com/api/v3/coins/ethereum/contract/{contract_address}/market_chart/range?vs_currency=usd&from={start_date.timestamp()}&to={end_date.timestamp()}",
@@ -67,7 +65,7 @@ async def get_coin_hist_price(
         sleep(5)
         try:
             prices = resp.json().get("prices")
-        except JSONDecodeError as e:
+        except JSONDecodeError:
             print(f"decode error for {resp.url}")
             return None
 
