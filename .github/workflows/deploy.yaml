@@ -19,7 +19,7 @@ jobs:
           email: ${{ secrets.HEROKU_EMAIL }}
           heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
           heroku_app_name: ${{ secrets.HEROKU_APP_NAME }}
-          dockerfile_directory: ./scheduler
+          dockerfile_directory: ./backend
           dockerfile_name: Dockerfile
           # By default, this argument is set to "web".
           # For more information look at https://devcenter.heroku.com/articles/process-model
