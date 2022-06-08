@@ -15,4 +15,4 @@ What we like:
 What we use (you should install these tools in your favorite editor):
 
 - Javascript: typescript, eslint, prettier.
-- Python: pylint, black, isort, flake8, mypy, pytest.
+- Python: pylint, black, isort, mypy, pytest.
