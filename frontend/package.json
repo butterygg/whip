@@ -13,6 +13,8 @@
     "watch:css": "postcss src/tailwind.css -o src/main.css"
   },
   "dependencies": {
+    "@sentry/browser": "^7.1.1",
+    "@sentry/tracing": "^7.1.1",
     "chart.js": "^3.7.1",
     "react": "^18.0.0",
     "react-chartjs-2": "^4.1.0",
