@@ -10,7 +10,7 @@ from pandas import Index, Series
 def portfolio_midnight_filler(
     portfolio_balances: Series, quote_rates: Series
 ) -> Optional[DF]:
-    def find_closest_quote(date: datetime.datetime):
+    def find_closest_quote(date: datetime.datetime) -> float:
         # For now, quote rates are not going as far back in time than portfolio
         # balances, so just return 0 if no quote
         if date < quote_rates.index[0]:
@@ -24,43 +24,49 @@ def portfolio_midnight_filler(
                 earlier_date -= datetime.timedelta(days=1)
                 continue
 
+    _today = today(UTC)
     filled_rows = []
     filled_datetimes = []
+    current_balance: float
+    current_date: datetime.datetime
+    next_date: datetime.datetime
+
+    def fill_until(
+        end_date: datetime.datetime,
+        start_date: datetime.datetime,
+    ):
+        _current_date = start_date
+        while _current_date < end_date:
+            _current_quote = find_closest_quote(_current_date)
+            filled_rows.append(current_balance * _current_quote)
+            filled_datetimes.append(_current_date)
+
+            _current_date += datetime.timedelta(days=1)
+        return _current_date
+
     rows = list(portfolio_balances.to_dict().items())
-    index = 0
     if len(rows) < 2:
         return None
 
-    for balance_change_datetime, balance in rows:
-        curr_date: datetime.datetime = balance_change_datetime[0].replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
-        next_date: datetime.datetime = rows[index + 1][0][0].replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
+    for index, row in enumerate(rows):
+        current_date = row[0][0].replace(hour=0, minute=0, second=0, microsecond=0)
+        if index < len(rows) - 1:
+            next_date = rows[index + 1][0][0].replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+        else:
+            next_date = current_date + datetime.timedelta(days=1)
+            if next_date > _today:
+                break
 
-        curr_balance = balance
-        while curr_date < next_date:
-            curr_quote = find_closest_quote(curr_date)
-            filled_rows.append(curr_balance * curr_quote)
-            filled_datetimes.append(curr_date)
+        current_balance = row[1]
+        current_date = fill_until(next_date, current_date)
 
-            curr_date += datetime.timedelta(days=1)
+    # Forward fill last dates from last balance change until today with
+    # last balance:
+    current_date = fill_until(_today + datetime.timedelta(days=1), current_date)
 
-        index += 1
-        if index == len(rows) - 1:
-            curr_date: datetime.datetime = today(UTC)
-            curr_balance = rows[-1][1]
-
-            prev_date: datetime.datetime = filled_datetimes[-1]
-            prev_date += datetime.timedelta(days=1)
-            while prev_date <= curr_date:
-                curr_quote = find_closest_quote(prev_date)
-                filled_rows.append(curr_balance * curr_quote)
-                filled_datetimes.append(prev_date)
-
-                prev_date += datetime.timedelta(days=1)
-            break
+    assert current_date == _today + datetime.timedelta(days=1)
 
     return DF(
         [[ts, value] for ts, value in zip(filled_datetimes, filled_rows)],
