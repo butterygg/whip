@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from functools import reduce
 from json import dumps
-from traceback import print_exception
+from typing import Optional
 
 from asgiref.sync import async_to_sync
 from dateutil.tz import UTC
@@ -101,7 +101,7 @@ async def fill_asset_hist_balances(
     sparse_asset_hist_balances: dict[str, Series],
     augmented_token_hist_prices: dict[str, DF],
 ) -> dict[str, DF]:
-    def fill_asset_hist_balance(symbol, augmented_token_hist_price):
+    def fill_asset_hist_balance(symbol, augmented_token_hist_price) -> Optional[DF]:
         if (
             symbol not in sparse_asset_hist_balances
             or len(sparse_asset_hist_balances[symbol]) < 2

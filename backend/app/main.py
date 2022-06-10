@@ -1,6 +1,5 @@
 import datetime
 from dataclasses import asdict, dataclass
-from traceback import print_exception
 from typing import Iterable, Literal, TypeVar, Union
 
 import dateutil

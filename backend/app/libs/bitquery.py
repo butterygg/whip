@@ -61,8 +61,8 @@ async def get_eth_transactions(address: str) -> list[BitqueryTransfer]:
                 try:
                     data = resp.json()["data"]
                     return data["ethereum"]["address"][0]["balances"][0]["history"]
-                except TypeError as e:
-                    print_exception(type(e), e, e.__traceback__)
+                except TypeError as exc:
+                    print_exception(type(exc), exc, exc.__traceback__)
                     return []
 
         balance_hist_data = await get_balance_hist_data()
