@@ -40,7 +40,9 @@ async def get_coin_hist_price(
     )
     if db.hexists(CACHE_HASH, cache_key):
         prices = json.loads(db.hget(CACHE_HASH, cache_key))
-        return (contract_address, symbol, prices)
+        if prices is not None:
+            return (contract_address, symbol, prices)
+        return None
 
     timeout = Timeout(10.0, read=15.0, connect=30.0)
     async with AsyncClient(
@@ -71,6 +73,8 @@ async def get_coin_hist_price(
         sleep(5)
         try:
             prices = resp.json().get("prices")
+            if prices is None:
+                return None
         except JSONDecodeError:
             print(f"decode error for {resp.url}")
             return None
