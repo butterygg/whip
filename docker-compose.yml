@@ -40,7 +40,7 @@ services:
       - scheduler/app.env
     volumes:
       - ./scheduler/app/:/app/app/
-    command: "celery -A app.celery_main worker --concurrency=1 -l INFO --pidfile= --logfile=/var/log/celery/%n%I.log"
+    command: "celery -A app.celery_main worker --concurrency=1 -B -l INFO --pidfile= --logfile=/var/log/celery/%n%I.log"
   frontend:
     profiles: ["frontend"]
     image: butter_whip/frontend:dev

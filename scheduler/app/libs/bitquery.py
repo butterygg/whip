@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import json
 import os
-from traceback import print_exception
+from typing import Optional
 
 from httpx import AsyncClient, Timeout
 from pytz import UTC
@@ -41,7 +41,9 @@ CACHE_HASH = "bitquery_eth"
 CACHE_KEY_TEMPLATE = "{address}_{date}"
 
 
-async def get_eth_transactions(address: str) -> list[BitqueryTransfer]:
+async def get_eth_transactions(
+  address: str
+) -> Optional[list[BitqueryTransfer]]:
     cache_date = dateutil.utils.today(UTC).strftime("%Y-%m-%d")
     cache_key = CACHE_KEY_TEMPLATE.format(address=address, date=cache_date)
     if db.hexists(CACHE_HASH, cache_key):
@@ -67,19 +69,17 @@ async def get_eth_transactions(address: str) -> list[BitqueryTransfer]:
                     return data["ethereum"]["address"][0]["balances"][0][
                       "history"
                     ]
-                except TypeError as e:
-                    print_exception(type(e), e, e.__traceback__)
-                    return None
+                except TypeError:
+                    print("this treasury does not have any ETH, continuing")
+                    return []
 
         balance_hist_data = await get_balance_hist_data()
         db.hset(CACHE_HASH, cache_key, json.dumps(balance_hist_data))
-    if not balance_hist_data:
-        return None
-    return [
-        BitqueryTransfer(
-            dateutil.parser.parse(hist_item["timestamp"]),
-            hist_item["transferAmount"],
-            hist_item["value"],
-        )
-        for hist_item in balance_hist_data
-    ]
+        return [
+            BitqueryTransfer(
+                dateutil.parser.parse(hist_item["timestamp"]),
+                hist_item["transferAmount"],
+                hist_item["value"],
+            )
+            for hist_item in balance_hist_data
+        ]

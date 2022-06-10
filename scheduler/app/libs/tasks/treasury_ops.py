@@ -32,17 +32,12 @@ def add_statistics(
     for i in range(1, len(df)):
         prev = df.loc[i - 1, column_name]
         current = df.loc[i, column_name]
-        if prev == 0 or current == 0:
+        if prev <= 0 or current <= 0:
+            print(f"unable to set return (ln(curr/prev)) for {symbol}")
+            print(f"curr: {current}, prev: {prev}")
             returns.append(0)
         else:
-            _return: float = None
-            try:
-                _return = log(current / prev)
-            except ValueError as e:
-                print(f"unable to set return (ln(curr/prev)) for {symbol}")
-                print_exception(type(e), e, e.__traceback__)
-                print(f"curr: {current}, prev: {prev}")
-            returns.append(_return)
+            returns.append(log(current / prev))
     df["returns"] = returns
 
     """ end section
@@ -148,9 +143,6 @@ async def populate_hist_tres_balance(
 
 
 def populate_bitquery_hist_eth_balance(eth_transfers: list[BitqueryTransfer]) -> Series:
-    # return an empty Series if there are no ETH/native token transfers
-    if not eth_transfers: return Series(dtype="object")
-
     index = MultiIndex.from_tuples(
         [
             (bt.timestamp, "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "ETH")
@@ -235,7 +227,6 @@ def calculate_risk_contributions(
     assert isclose(
         summed_component_contributions, std_dev[0][0], rel_tol=0.0001
     ), "error in calculations"
-    # print(f"component_contributions: {component_contributions}")
 
     component_percentages = component_contributions / std_dev[0][0]
 
@@ -261,7 +252,7 @@ def apply_spread_percentages(
     start: str,
 ) -> dict[str, DF]:
     start_balance = sum(
-        asset_hist_balance.set_index("timestamp").sort_index().loc[start].balance
+        asset_hist_balance.loc[start].balance
         for asset_hist_balance in asset_hist_balances.values()
     )
     start_balance_except_spread_token = sum(
