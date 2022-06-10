@@ -36,3 +36,11 @@ class Treasury:
         self.usd_total = sum(
             asset.balance for asset in self.assets if asset.balance is not None
         )
+
+    def prune(self, symbol: str):
+        i = 0
+        for asset in self.assets:
+            if asset.token_symbol == symbol:
+                self.assets.pop(i)
+                break
+            i += 1
