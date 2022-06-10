@@ -45,15 +45,16 @@ async def get_token_hist_prices(treasury: Treasury) -> dict[str, DF]:
     } | {("ETH", "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")}
     maybe_hist_prices = {}
     for token_symbol, token_address in asset_addresses_including_eth:
-        maybe_hist_price = await coingecko.get_coin_hist_price(token_address, token_symbol)
+        maybe_hist_price = await coingecko.get_coin_hist_price(
+            token_address, token_symbol
+        )
         if not maybe_hist_price:
             treasury.prune(token_symbol)
             continue
         maybe_hist_prices.update({token_symbol: maybe_hist_price})
 
     hist_prices = {
-        symbol: mhp for symbol, mhp in maybe_hist_prices.items()
-        if mhp is not None
+        symbol: mhp for symbol, mhp in maybe_hist_prices.items() if mhp is not None
     }
     return {
         symbol: coingecko.coingecko_hist_df(addr, symbol, prices)
