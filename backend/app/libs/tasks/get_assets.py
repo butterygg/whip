@@ -229,16 +229,7 @@ def augment_spread_treasury(
         b.loc[end].balance for b in spread_asset_hist_balances.values()
     )
     for asset in spread_treasury.assets:
-        try:
-            asset.balance = (
-                spread_asset_hist_balances[asset.token_symbol].loc[end].balance
-            )
-        except KeyError as e:
-            print(
-                f"unable to get balance of asset {asset.token_symbol} from spread treasury"
-            )
-            print_exception(type(e), e, e.__traceback__)
-            continue
+        asset.balance = spread_asset_hist_balances[asset.token_symbol].loc[end].balance
 
     augmented_total_balance = augment_total_balance(spread_asset_hist_balances)
     augmented_spread_treasury = calculate_risk_contributions(

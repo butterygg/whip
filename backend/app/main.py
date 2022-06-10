@@ -59,22 +59,14 @@ class Portfolio:
         }
         totalbalance = augmented_total_balance.loc[start:end]
 
-        assets = {}
-        for a in treasury.assets:
-            try:
-                assets.update(
-                    {
-                        a.token_symbol: PortfolioAsset(
-                            allocation=a.balance / treasury.usd_total,
-                            volatility=histprices[a.token_symbol]["std_dev"].mean(),
-                            risk_contribution=a.risk_contribution,
-                        )
-                    }
-                )
-            except KeyError as e:
-                print(f"error in listing asset {a.token_symbol}")
-                print_exception(type(e), e, e.__traceback__)
-                continue
+        assets = {
+            a.token_symbol: PortfolioAsset(
+                allocation=a.balance / treasury.usd_total,
+                volatility=histprices[a.token_symbol]["std_dev"].mean(),
+                risk_contribution=a.risk_contribution,
+            )
+            for a in treasury.assets
+        }
 
         if (start not in totalbalance.index) or (totalbalance.loc[start].balance == 0):
             market_return = "Infinity"

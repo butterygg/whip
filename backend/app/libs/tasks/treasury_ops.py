@@ -22,10 +22,6 @@ def add_statistics(
     index: Optional[str] = None,
 ):
     dataframe = dataframe.reset_index()
-    try:
-        symbol = dataframe["symbol"][0]
-    except KeyError:
-        symbol = "Balances"
 
     # `returns` = ln(current_price / previous_price)
     returns = [0]
@@ -36,14 +32,7 @@ def add_statistics(
         if prev == 0 or current == 0:
             returns.append(0)
         else:
-            _return: float = None
-            try:
-                _return = log(current / prev)
-            except ValueError as e:
-                print(f"unable to set return (ln(curr/prev)) for {symbol}")
-                print_exception(type(e), e, e.__traceback__)
-                print(f"curr: {current}, prev: {prev}")
-            returns.append(_return)
+            returns.append(log(current / prev))
     dataframe["returns"] = returns
 
     # rolling std_dev of `returns` section
@@ -140,10 +129,6 @@ async def populate_hist_tres_balance(
 
 
 def populate_bitquery_hist_eth_balance(eth_transfers: list[BitqueryTransfer]) -> Series:
-    # return an empty Series if there are no ETH/native token transfers
-    if not eth_transfers:
-        return Series(dtype="object")
-
     index = MultiIndex.from_tuples(
         [
             (bt.timestamp, "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "ETH")

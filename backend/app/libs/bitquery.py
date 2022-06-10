@@ -63,12 +63,10 @@ async def get_eth_transactions(address: str) -> list[BitqueryTransfer]:
                     return data["ethereum"]["address"][0]["balances"][0]["history"]
                 except TypeError as e:
                     print_exception(type(e), e, e.__traceback__)
-                    return None
+                    return []
 
         balance_hist_data = await get_balance_hist_data()
         db.hset(CACHE_HASH, cache_key, json.dumps(balance_hist_data))
-    if not balance_hist_data:
-        return None
     return [
         BitqueryTransfer(
             dateutil.parser.parse(hist_item["timestamp"]),
