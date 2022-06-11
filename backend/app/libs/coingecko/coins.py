@@ -2,6 +2,7 @@ import datetime
 import json
 from json.decoder import JSONDecodeError
 from time import sleep
+from typing import Optional
 
 import dateutil.tz
 import dateutil.utils
@@ -29,7 +30,7 @@ CACHE_KEY_TEMPLATE = "{symbol}_{start}_{end}"
 async def get_coin_hist_price(
     contract_address: str,
     symbol: str,
-):
+) -> Optional[tuple[str, str, list[tuple[int, float]]]]:
     end_date = dateutil.utils.today(dateutil.tz.UTC)
     start_date = end_date - datetime.timedelta(days=366)
 
@@ -40,9 +41,7 @@ async def get_coin_hist_price(
     )
     if db.hexists(CACHE_HASH, cache_key):
         prices = json.loads(db.hget(CACHE_HASH, cache_key))
-        if prices is not None:
-            return (contract_address, symbol, prices)
-        return None
+        return (contract_address, symbol, prices)
 
     timeout = Timeout(10.0, read=15.0, connect=30.0)
     async with AsyncClient(
@@ -85,4 +84,5 @@ async def get_coin_hist_price(
 
     if prices is None:
         return None
+
     return (contract_address, symbol, prices)
