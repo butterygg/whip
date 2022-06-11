@@ -3,17 +3,17 @@ from functools import reduce
 from json import dumps
 from typing import Optional
 
+import pandas as pd
 from asgiref.sync import async_to_sync
 from dateutil.tz import UTC
 from dateutil.utils import today
 from dotenv import load_dotenv
-from pandas import DataFrame as DF
-from pandas import Series, to_datetime
 
 from ... import db
 from ...celery_main import app as celery_app
-from .. import bitquery, coingecko, covalent
-from ..pd_inter_calc import portfolio_midnight_filler
+from .. import bitquery, coingecko, covalent, price_stats, spread
+from ..pd_inter_calc import make_daily_hist_balance
+from ..series import make_hist_price_series, make_hist_transfer_series
 from ..storage_helpers import (
     retrieve_treasuries_metadata,
     store_asset_correlations,
@@ -21,14 +21,6 @@ from ..storage_helpers import (
     store_asset_hist_performance,
 )
 from ..types import ERC20, Treasury
-from .treasury_ops import (
-    add_statistics,
-    apply_spread_percentages,
-    calculate_correlations,
-    calculate_risk_contributions,
-    populate_bitquery_hist_eth_balance,
-    populate_hist_tres_balance,
-)
 
 load_dotenv()
 
@@ -39,33 +31,26 @@ async def make_treasury(treasury_address: str, chain_id: int) -> Treasury:
     )
 
 
-async def get_token_hist_prices(treasury: Treasury) -> dict[str, DF]:
+async def get_token_hist_prices(treasury: Treasury) -> dict[str, pd.Series]:
     asset_addresses_including_eth = {
         (a.token_symbol, a.token_address) for a in treasury.assets
     } | {("ETH", "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")}
-    maybe_hist_prices = {}
-    for token_symbol, token_address in asset_addresses_including_eth:
-        maybe_hist_price = await coingecko.get_coin_hist_price(
-            token_address, token_symbol
-        )
-        if not maybe_hist_price:
-            treasury.prune(token_symbol)
-            continue
-        maybe_hist_prices.update({token_symbol: maybe_hist_price})
-
-    hist_prices = {
-        symbol: mhp for symbol, mhp in maybe_hist_prices.items() if mhp is not None
+    maybe_prices = {
+        token_symbol: await coingecko.get_coin_hist_price(token_address, token_symbol)
+        for token_symbol, token_address in asset_addresses_including_eth
     }
     return {
-        symbol: coingecko.coingecko_hist_df(addr, symbol, prices)
-        for symbol, (addr, symbol, prices) in hist_prices.items()
+        token_symbol: make_hist_price_series(token_symbol, prices)
+        for token_symbol, prices in maybe_prices.items()
         if prices
     }
 
 
-def augment_token_hist_prices(token_hist_prices: dict[str, DF]) -> dict[str, DF]:
+def augment_token_hist_prices(
+    token_hist_prices: dict[str, pd.Series]
+) -> dict[str, pd.DataFrame]:
     return {
-        symbol: add_statistics(token_hist_price)
+        symbol: price_stats.make_returns_df(token_hist_price, "price")
         for symbol, token_hist_price in token_hist_prices.items()
     }
 
@@ -79,45 +64,36 @@ def filter_out_small_assets(treasury: Treasury):
     return treasury
 
 
-async def get_sparse_asset_hist_balances(treasury: Treasury) -> dict[str, Series]:
-    asset_contract_addresses = {
-        asset.token_symbol: asset.token_address for asset in treasury.assets
-    }
-    transfer_histories = {
-        symbol: await covalent.get_token_transfers_for_wallet(
-            treasury.address, asset_contract_address
+async def get_asset_transfer_balances(treasury: Treasury) -> dict[str, pd.Series]:
+    "Returns series of balances defined at times of assets transfers"
+    maybe_transfers = {
+        asset.token_symbol: await covalent.get_token_transfers(
+            treasury.address, asset.token_address
         )
-        for symbol, asset_contract_address in asset_contract_addresses.items()
+        for asset in treasury.assets
     }
-    maybe_sparse_asset_hist_balances = {
-        symbol: await populate_hist_tres_balance(transfer_history)
-        for symbol, transfer_history in transfer_histories.items()
-    }
-    maybe_sparse_asset_hist_balances["ETH"] = populate_bitquery_hist_eth_balance(
-        await bitquery.get_eth_transactions(treasury.address)
-    )
+    maybe_transfers["ETH"] = await bitquery.get_eth_transfers(treasury.address)
     return {
-        symbol: hist
-        for symbol, hist in maybe_sparse_asset_hist_balances.items()
-        if hist is not None and not hist.empty
+        symbol: make_hist_transfer_series(symbol, transfers)
+        for symbol, transfers in maybe_transfers.items()
+        if transfers
     }
 
 
 async def fill_asset_hist_balances(
-    sparse_asset_hist_balances: dict[str, Series],
-    augmented_token_hist_prices: dict[str, DF],
-) -> dict[str, DF]:
-    def fill_asset_hist_balance(symbol, augmented_token_hist_price) -> Optional[DF]:
+    asset_transfer_balances: dict[str, pd.Series],
+    augmented_token_hist_prices: dict[str, pd.DataFrame],
+) -> dict[str, pd.Series]:
+    def fill_asset_hist_balance(
+        symbol, augmented_token_hist_price
+    ) -> Optional[pd.DataFrame]:
         if (
-            symbol not in sparse_asset_hist_balances
-            or len(sparse_asset_hist_balances[symbol]) < 2
+            symbol not in asset_transfer_balances
+            or len(asset_transfer_balances[symbol]) < 2
         ):
             return None
-        quote_rates = Series(data=augmented_token_hist_price["price"])
-        quote_rates.index = to_datetime(augmented_token_hist_price["timestamp"])
-        quote_rates = quote_rates.iloc[::-1]
-        return portfolio_midnight_filler(
-            sparse_asset_hist_balances[symbol], quote_rates
+        return make_daily_hist_balance(
+            symbol, asset_transfer_balances[symbol], augmented_token_hist_price.price
         )
 
     maybe_asset_hist_balance = {
@@ -131,14 +107,12 @@ async def fill_asset_hist_balances(
     }
 
 
-def augment_total_balance(asset_hist_balances: dict[str, DF]) -> Series:
-    hist_total_balance = reduce(
+def augment_total_balance(asset_hist_balances: dict[str, pd.Series]) -> pd.DataFrame:
+    hist_total_balance: pd.Series = reduce(
         lambda acc, item: acc.add(item, fill_value=0),
-        (balance["balance"] for balance in asset_hist_balances.values()),
+        asset_hist_balances.values(),
     )
-    return add_statistics(
-        hist_total_balance, column_name="balance", reverse=False, index="timestamp"
-    )
+    return price_stats.make_returns_df(hist_total_balance, "balance")
 
 
 async def build_bare_treasury(treasury_address: str, chain_id: int) -> Treasury:
@@ -175,15 +149,30 @@ async def build_spread_bare_treasury(
     return treasury
 
 
-async def build_assets(treasury: Treasury) -> tuple[dict[str, DF], dict[str, DF]]:
+async def build_assets(
+    treasury: Treasury,
+) -> tuple[Treasury, dict[str, pd.DataFrame], dict[str, pd.DataFrame]]:
     augmented_token_hist_prices = augment_token_hist_prices(
         await get_token_hist_prices(treasury)
     )
     asset_hist_balances = await fill_asset_hist_balances(
-        await get_sparse_asset_hist_balances(treasury),
+        await get_asset_transfer_balances(treasury),
         augmented_token_hist_prices,
     )
+    augmented_token_hist_prices = {
+        k: v
+        for k, v in augmented_token_hist_prices.items()
+        if k in asset_hist_balances or k == "ETH"
+    }
+    treasury.assets = [
+        a
+        for a in treasury.assets
+        if a.token_symbol in augmented_token_hist_prices
+        and a.token_symbol in asset_hist_balances
+    ]
+
     return (
+        treasury,
         augmented_token_hist_prices,
         asset_hist_balances,
     )
@@ -192,33 +181,54 @@ async def build_assets(treasury: Treasury) -> tuple[dict[str, DF], dict[str, DF]
 async def build_spread_assets(
     spread_treasury: Treasury,
     start: str,
+    end: str,
     spread_token_symbol: str,
     spread_percentage: int,
-) -> tuple[dict[str, DF], dict[str, DF]]:
+) -> tuple[Treasury, dict[str, pd.DataFrame], dict[str, pd.DataFrame]]:
     augmented_token_hist_prices = augment_token_hist_prices(
         await get_token_hist_prices(spread_treasury)
     )
     asset_hist_balances = await fill_asset_hist_balances(
-        await get_sparse_asset_hist_balances(spread_treasury),
+        await get_asset_transfer_balances(spread_treasury),
         augmented_token_hist_prices,
     )
+    augmented_token_hist_prices = {
+        k: v
+        for k, v in augmented_token_hist_prices.items()
+        if k in asset_hist_balances or k == "ETH" or k == spread_token_symbol
+    }
 
-    spread_asset_hist_balances = apply_spread_percentages(
-        asset_hist_balances, spread_token_symbol, spread_percentage, start
+    spread_asset_hist_balances = spread.apply_spread_to_balances(
+        asset_hist_balances,
+        spread_token_symbol,
+        spread_percentage,
+        start,
+        end,
     )
+    assert next(iter(spread_asset_hist_balances.values())).iloc[0] >= 0
 
-    return (augmented_token_hist_prices, spread_asset_hist_balances)
+    spread_treasury.assets = [
+        a
+        for a in spread_treasury.assets
+        if (
+            a.token_symbol in augmented_token_hist_prices
+            and a.token_symbol in spread_asset_hist_balances
+        )
+        or a.token_symbol == spread_token_symbol
+    ]
+
+    return (spread_treasury, augmented_token_hist_prices, spread_asset_hist_balances)
 
 
 def augment_treasury(
     treasury: Treasury,
-    asset_hist_balances: dict[str, DF],
-    augmented_token_hist_prices: dict[str, DF],
+    asset_hist_balances: dict[str, pd.Series],
+    augmented_token_hist_prices: dict[str, pd.DataFrame],
     start: str,
     end: str,
-) -> tuple[Treasury, Series]:
+) -> tuple[Treasury, pd.Series]:
     augmented_total_balance = augment_total_balance(asset_hist_balances)
-    augmented_treasury = calculate_risk_contributions(
+    augmented_treasury = price_stats.fill_asset_risk_contributions(
         treasury, augmented_token_hist_prices, start, end
     )
     return augmented_treasury, augmented_total_balance
@@ -226,19 +236,21 @@ def augment_treasury(
 
 def augment_spread_treasury(
     spread_treasury: Treasury,
-    spread_asset_hist_balances: dict[str, DF],
-    augmented_token_hist_prices: dict[str, DF],
+    spread_asset_hist_balances: dict[str, pd.Series],
+    augmented_token_hist_prices: dict[str, pd.DataFrame],
     start: str,
     end: str,
-) -> tuple[Treasury, Series]:
+) -> tuple[Treasury, pd.Series]:
     spread_treasury.usd_total = sum(
-        b.loc[end].balance for b in spread_asset_hist_balances.values()
+        b.loc[end] for b in spread_asset_hist_balances.values()
     )
+    assert spread_treasury.usd_total >= 0
+
     for asset in spread_treasury.assets:
-        asset.balance = spread_asset_hist_balances[asset.token_symbol].loc[end].balance
+        asset.balance = spread_asset_hist_balances[asset.token_symbol].loc[end]
 
     augmented_total_balance = augment_total_balance(spread_asset_hist_balances)
-    augmented_spread_treasury = calculate_risk_contributions(
+    augmented_spread_treasury = price_stats.fill_asset_risk_contributions(
         spread_treasury, augmented_token_hist_prices, start, end
     )
     return (
@@ -249,10 +261,11 @@ def augment_spread_treasury(
 
 async def build_treasury_with_assets(
     treasury_address: str, chain_id: int, start: str, end: str
-) -> tuple[Treasury, dict[str, DF], dict[str, DF], Series]:
+) -> tuple[Treasury, dict[str, pd.DataFrame], dict[str, pd.DataFrame], pd.Series]:
     treasury = await build_bare_treasury(treasury_address, chain_id)
 
     (
+        treasury,
         augmented_token_hist_prices,
         asset_hist_balances,
     ) = await build_assets(treasury)
@@ -277,7 +290,7 @@ async def build_spread_treasury_with_assets(
     spread_token_symbol: str,
     spread_token_address: str,
     spread_percentage: int,
-) -> tuple[Treasury, dict[str, DF], dict[str, DF], Series]:
+) -> tuple[Treasury, dict[str, pd.DataFrame], dict[str, pd.DataFrame], pd.Series]:
     spread_treasury = await build_spread_bare_treasury(
         treasury_address,
         chain_id,
@@ -288,10 +301,15 @@ async def build_spread_treasury_with_assets(
     )
 
     (
+        spread_treasury,
         augmented_token_hist_prices,
         spread_asset_hist_balances,
     ) = await build_spread_assets(
-        spread_treasury, start, spread_token_symbol, spread_percentage
+        spread_treasury,
+        start,
+        end,
+        spread_token_symbol,
+        spread_percentage,
     )
 
     augmented_spread_treasury, augmented_total_balance = augment_spread_treasury(
@@ -362,7 +380,7 @@ def reload_treasuries_data():
 
             store_asset_correlations(
                 treasury.address,
-                calculate_correlations(
+                price_stats.make_returns_correlations_matrix(
                     treasury, augmented_token_hist_prices, start, end
                 ).to_json(orient="index"),
                 provider=pipe,
