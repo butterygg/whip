@@ -73,12 +73,15 @@ async def get_coin_hist_price(
         sleep(5)
         try:
             prices = resp.json().get("prices")
-            if prices is None:
-                return None
         except JSONDecodeError:
             print(f"decode error for {resp.url}")
             return None
 
     db.hset(CACHE_HASH, cache_key, json.dumps(prices))
+    # Set an expiry flag on this hset name for a day.
+    # It will only set an expire on this name if none exists for it.
+    db.expire(CACHE_HASH, 86400, nx=True)
 
+    if prices is None:
+        return None
     return (contract_address, symbol, prices)
