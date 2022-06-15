@@ -80,7 +80,8 @@ async def get_coin_hist_price(
     db.hset(CACHE_HASH, cache_key, json.dumps(prices))
     # Set an expiry flag on this hset name for a day.
     # It will only set an expire on this name if none exists for it.
-    db.expire(CACHE_HASH, 86400, nx=True)
+    if db.ttl(CACHE_HASH) <= 0:
+        db.expire(CACHE_HASH, 86400)
 
     if prices is None:
         return None
