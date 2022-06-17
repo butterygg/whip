@@ -24,13 +24,21 @@ def retrieve_treasuries_metadata(
         "0x4441776e6a5d61fa024a5117bfc26b953ad1f425",
         "0x4750c43867ef5f89869132eccf19b9b6c4286e1a",
         "0x4b4e140d1f131fdad6fb59c13af796fd194e4135",
-        "0x3d30b1ab88d487b0f3061f40de76845bec3f1e94"
+        "0x3d30b1ab88d487b0f3061f40de76845bec3f1e94",
     ]
     return [
-        (address, json.loads(value)["chain_id"]) for address, value in
-        provider.hgetall("treasuries").items()
+        (address, json.loads(value)["chain_id"])
+        for address, value in provider.hgetall("treasuries").items()
         if address not in blacklist
     ]
+
+
+def store_token_whitelist(address: list[str]):
+    db.sadd("whitelist", *address)
+
+
+def retrieve_token_whitelist() -> list[str]:
+    return db.smembers("whitelist")
 
 
 BALANCES_KEY_TEMPLATE = "{address}_{symbol}"
