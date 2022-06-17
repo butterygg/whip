@@ -18,6 +18,7 @@ from .. import bitquery, coingecko, covalent, price_stats, spread
 from ..pd_inter_calc import make_daily_hist_balance
 from ..series import make_hist_price_series, make_hist_transfer_series
 from ..storage_helpers import (
+    cache_treasury_list,
     retrieve_treasuries_metadata,
     store_asset_correlations,
     store_asset_hist_balance,
