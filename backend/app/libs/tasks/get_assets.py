@@ -362,6 +362,11 @@ def setup_init_tasks(**_):
     reload_whitelist.apply_async()
 
 
+@celery_app.on_after_finalize.connect
+def start_whitelist_reload(**_):
+    reload_whitelist.apply_async()
+
+
 @celery_app.task
 def reload_treasuries_stats():
     end_date: datetime = today(UTC)
