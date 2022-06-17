@@ -49,7 +49,7 @@ async def get_eth_transactions(address: str) -> list[BitqueryTransfer]:
     else:
 
         async def get_balance_hist_data():
-            timeout = Timeout(10.0, read=15.0, connect=30.0)
+            timeout = Timeout(10.0, read=30.0, connect=30.0)
             async with AsyncClient(
                 headers={"X-API-KEY": BITQUERY_API_KEY}, timeout=timeout
             ) as client:

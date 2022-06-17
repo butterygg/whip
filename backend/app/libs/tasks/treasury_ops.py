@@ -48,9 +48,7 @@ def add_statistics(
     return dataframe
 
 
-async def populate_hist_tres_balance(
-    asset_trans_history: dict[str, Any]
-) -> Optional[Series]:
+def populate_hist_tres_balance(asset_trans_history: dict[str, Any]) -> Optional[Series]:
     """Return a Series of a given treasury's *partial*, historical token balance.
 
     The given `asset_trans_history` should be a response from
@@ -123,6 +121,7 @@ async def populate_hist_tres_balance(
 
     if len(balances) > 0:
         return balances
+    return None
 
 
 def populate_bitquery_hist_eth_balance(eth_transfers: list[BitqueryTransfer]) -> Series:
@@ -220,7 +219,6 @@ def calculate_risk_contributions(
     assert isclose(
         summed_component_contributions, std_dev[0][0], rel_tol=0.0001
     ), "error in calculations"
-    # print(f"component_contributions: {component_contributions}")
 
     component_percentages = component_contributions / std_dev[0][0]
 

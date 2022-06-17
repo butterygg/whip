@@ -1,10 +1,12 @@
 # pylint: disable=duplicate-code
 import json
 from os import getenv
+from time import sleep
 from typing import Any, Dict, List, Optional
 
+from billiard.pool import MaybeEncodingError
 import dateutil
-from httpx import AsyncClient, Timeout
+from httpx import AsyncClient, Timeout, ReadTimeout
 from pytz import UTC
 
 from ... import db
@@ -25,11 +27,30 @@ async def get_treasury_portfolio(
         return json.loads(db.hget(CACHE_HASH, cache_key))
 
     timeout = Timeout(10.0, read=30.0, connect=45.0)
-    async with AsyncClient(timeout=timeout) as client:
-        resp = await client.get(
-            f"https://api.covalenthq.com/v1/{chain_id}/address/{treasury_address}/"
-            + f"portfolio_v2/?&key=ckey_{getenv('COVALENT_KEY')}"
-        )
+    async with AsyncClient(
+        headers={
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            + "AppleWebKit/537.36 (KHTML, like Gecko) "
+            + "Chrome/100.0.4896.127 Safari/537.36 Edg/100.0.1185.50"
+        },
+        timeout=timeout,
+    ) as client:
+        try:
+            resp = await client.get(
+                f"https://api.covalenthq.com/v1/{chain_id}/address/{treasury_address}/"
+                + f"portfolio_v2/?&key=ckey_{getenv('COVALENT_KEY')}"
+            )
+        except MaybeEncodingError:
+            sleep(5)
+            resp = await client.get(
+                f"https://api.covalenthq.com/v1/{chain_id}/address/{treasury_address}/"
+                + f"portfolio_v2/?&key=ckey_{getenv('COVALENT_KEY')}"
+            )
+        except ReadTimeout:
+            resp = await client.get(
+                f"https://api.covalenthq.com/v1/{chain_id}/address/{treasury_address}/"
+                + f"portfolio_v2/?&key=ckey_{getenv('COVALENT_KEY')}"
+            )
 
         data = resp.json()["data"]
 

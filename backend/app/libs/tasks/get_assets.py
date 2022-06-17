@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta
 from functools import reduce
 from json import dumps
-from typing import Optional
+from concurrent.futures import ThreadPoolExecutor
+from os import sched_getaffinity
+from typing import Any, Optional
 
 from asgiref.sync import async_to_sync
 from dateutil.tz import UTC
@@ -64,11 +66,14 @@ async def get_token_hist_prices(treasury: Treasury) -> dict[str, DF]:
     }
 
 
+def return_augment_hist_price(items: tuple[str, DF]):
+    (_symbol, _stats) = items
+    return _symbol, add_statistics(_stats)
+
+
 def augment_token_hist_prices(token_hist_prices: dict[str, DF]) -> dict[str, DF]:
-    return {
-        symbol: add_statistics(token_hist_price)
-        for symbol, token_hist_price in token_hist_prices.items()
-    }
+    with ThreadPoolExecutor(max_workers=len(sched_getaffinity(0)) - 2) as executor:
+        return dict(executor.map(return_augment_hist_price, token_hist_prices.items()))
 
 
 def filter_out_small_assets(treasury: Treasury):
@@ -78,6 +83,11 @@ def filter_out_small_assets(treasury: Treasury):
         if asset.balance / treasury.usd_total >= 0.5 / 100
     ]
     return treasury
+
+
+def return_hist_tres_balance(_items: tuple[str, dict[str, Any]]):
+    (_symbol, _transfer_history) = _items
+    return _symbol, populate_hist_tres_balance(_transfer_history)
 
 
 async def get_sparse_asset_hist_balances(treasury: Treasury) -> dict[str, Series]:
@@ -90,10 +100,10 @@ async def get_sparse_asset_hist_balances(treasury: Treasury) -> dict[str, Series
         )
         for symbol, asset_contract_address in asset_contract_addresses.items()
     }
-    maybe_sparse_asset_hist_balances = {
-        symbol: await populate_hist_tres_balance(transfer_history)
-        for symbol, transfer_history in transfer_histories.items()
-    }
+    with ThreadPoolExecutor(max_workers=len(sched_getaffinity(0)) - 2) as executor:
+        maybe_sparse_asset_hist_balances = dict(
+            executor.map(return_hist_tres_balance, transfer_histories.items())
+        )
     maybe_sparse_asset_hist_balances["ETH"] = populate_bitquery_hist_eth_balance(
         await bitquery.get_eth_transactions(treasury.address)
     )
@@ -312,21 +322,33 @@ async def build_spread_treasury_with_assets(
 
 
 @celery_app.on_after_finalize.connect
-def setup_periodic_tasks(sender, **_):
+def setup_reload_stats_tasks(sender, **_):
     sender.add_periodic_task(
-        30.0, reload_treasuries_data.s(), name="reload treasuries data"
+        86400.0, reload_treasuries_stats.s(), name="reload treasuries stats"
+    )
+
+
+@celery_app.on_after_finalize.connect
+def setup_reload_list(sender, **_):
+    sender.add_periodic_task(
+        86400.0 * 3, reload_treasuries_list.s(), name="reload treasury list"
     )
 
 
 @celery_app.task
-def reload_treasuries_data():
+def reload_treasuries_stats():
     end_date: datetime = today(UTC)
     start_date: datetime = end_date - timedelta(days=365)
 
     start = start_date.isoformat()[:10]
     end = end_date.isoformat()[:10]
 
-    for treasury_metadata in retrieve_treasuries_metadata():
+    treasuries = retrieve_treasuries_metadata(db)
+    if not treasuries:
+        cache_treasury_list(db)
+        treasuries = retrieve_treasuries_metadata(db)
+
+    for treasury_metadata in treasuries:
         with db.pipeline() as pipe:
             (
                 treasury,
@@ -370,3 +392,8 @@ def reload_treasuries_data():
             )
 
             pipe.execute()
+
+
+@celery_app.task
+def reload_treasuries_list():
+    cache_treasury_list(db)
