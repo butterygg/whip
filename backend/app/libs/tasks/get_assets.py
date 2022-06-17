@@ -16,18 +16,25 @@ from ..pd_inter_calc import make_daily_hist_balance
 from ..series import make_hist_price_series, make_hist_transfer_series
 from ..storage_helpers import (
     retrieve_treasuries_metadata,
+    retrieve_token_whitelist,
     store_asset_correlations,
     store_asset_hist_balance,
     store_asset_hist_performance,
 )
+from ..tokenlists import get_coingecko_token_list
 from ..types import ERC20, Treasury
 
 load_dotenv()
 
 
 async def make_treasury(treasury_address: str, chain_id: int) -> Treasury:
+    token_whitelist = retrieve_token_whitelist()
+    if not token_whitelist:
+        get_coingecko_token_list()
+        token_whitelist = retrieve_token_whitelist()
     return await covalent.get_treasury(
-        await covalent.get_treasury_portfolio(treasury_address, chain_id)
+        await covalent.get_treasury_portfolio(treasury_address, chain_id),
+        token_whitelist
     )
 
 
@@ -342,6 +349,8 @@ def reload_treasuries_data():
 
     start = start_date.isoformat()[:10]
     end = end_date.isoformat()[:10]
+
+    get_coingecko_token_list()
 
     for treasury_metadata in retrieve_treasuries_metadata():
         with db.pipeline() as pipe:
