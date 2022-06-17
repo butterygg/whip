@@ -2,7 +2,9 @@ from asyncio import run
 from datetime import datetime, timedelta
 from functools import reduce
 from json import dumps
-from typing import Optional
+from concurrent.futures import ThreadPoolExecutor
+from os import sched_getaffinity
+from typing import Any, Optional
 
 import pandas as pd
 from asgiref.sync import async_to_sync
@@ -336,11 +338,18 @@ async def build_spread_treasury_with_assets(
 
 
 @celery_app.on_after_finalize.connect
-def setup_periodic_tasks(sender, **_):
+def setup_reload_stats_tasks(sender, **_):
     sender.add_periodic_task(
         crontab(hour=0, minute=30, nowfun=datetime.now),
-        reload_treasuries_data.s(),
-        name="reload treasuries data",
+        reload_treasuries_stats.s(),
+        name="reload treasuries stats",
+    )
+
+
+@celery_app.on_after_finalize.connect
+def setup_reload_list(sender, **_):
+    sender.add_periodic_task(
+        86400.0 * 3, reload_treasuries_list.s(), name="reload treasury list"
     )
 
     sender.add_periodic_task(
@@ -356,14 +365,19 @@ def setup_init_tasks(**_):
 
 
 @celery_app.task
-def reload_treasuries_data():
+def reload_treasuries_stats():
     end_date: datetime = today(UTC)
     start_date: datetime = end_date - timedelta(days=365)
 
     start = start_date.isoformat()[:10]
     end = end_date.isoformat()[:10]
 
-    for treasury_metadata in retrieve_treasuries_metadata():
+    treasuries = retrieve_treasuries_metadata(db)
+    if not treasuries:
+        cache_treasury_list(db)
+        treasuries = retrieve_treasuries_metadata(db)
+
+    for treasury_metadata in treasuries:
         with db.pipeline() as pipe:
             (
                 treasury,
@@ -417,3 +431,8 @@ def reload_whitelist(self):
     except AssertionError:
         logger = get_task_logger(self.request.id)
         logger.error("reload whitelist task failed: empty whitelist")
+
+
+@celery_app.task
+def reload_treasuries_list():
+    cache_treasury_list(db)
