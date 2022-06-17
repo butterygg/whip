@@ -220,7 +220,7 @@ def calculate_risk_contributions(
     assert isclose(
         summed_component_contributions, std_dev[0][0], rel_tol=0.0001
     ), "error in calculations"
-    print(f"component_contributions: {component_contributions}")
+    # print(f"component_contributions: {component_contributions}")
 
     component_percentages = component_contributions / std_dev[0][0]
 
@@ -247,12 +247,18 @@ def apply_spread_percentages(
     spread_percentage: int,
     start: str,
 ) -> dict[str, DF]:
+    def get_default_balance(histbal: DF, date: str) -> float:
+        try:
+            return histbal.set_index("timestamp").sort_index().loc[date].balance
+        except KeyError:
+            return 0
+
     start_balance = sum(
-        asset_hist_balance.loc[start].balance
+        get_default_balance(asset_hist_balance, start)
         for asset_hist_balance in asset_hist_balances.values()
     )
     start_balance_except_spread_token = sum(
-        asset_hist_balance.loc[start].balance
+        get_default_balance(asset_hist_balance, start)
         for symbol, asset_hist_balance in asset_hist_balances.items()
         if symbol != spread_token_symbol
     )

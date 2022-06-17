@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from functools import reduce
 from json import dumps
+from typing import Optional
 
 from asgiref.sync import async_to_sync
 from dateutil.tz import UTC
@@ -42,10 +43,16 @@ async def get_token_hist_prices(treasury: Treasury) -> dict[str, DF]:
     asset_addresses_including_eth = {
         (a.token_symbol, a.token_address) for a in treasury.assets
     } | {("ETH", "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")}
-    maybe_hist_prices = {
-        token_symbol: await coingecko.get_coin_hist_price(token_address, token_symbol)
-        for token_symbol, token_address in asset_addresses_including_eth
-    }
+    maybe_hist_prices = {}
+    for token_symbol, token_address in asset_addresses_including_eth:
+        maybe_hist_price = await coingecko.get_coin_hist_price(
+            token_address, token_symbol
+        )
+        if not maybe_hist_price:
+            treasury.prune(token_symbol)
+            continue
+        maybe_hist_prices.update({token_symbol: maybe_hist_price})
+
     hist_prices = {
         symbol: mhp for symbol, mhp in maybe_hist_prices.items() if mhp is not None
     }
@@ -100,7 +107,7 @@ async def fill_asset_hist_balances(
     sparse_asset_hist_balances: dict[str, Series],
     augmented_token_hist_prices: dict[str, DF],
 ) -> dict[str, DF]:
-    def fill_asset_hist_balance(symbol, augmented_token_hist_price):
+    def fill_asset_hist_balance(symbol, augmented_token_hist_price) -> Optional[DF]:
         if (
             symbol not in sparse_asset_hist_balances
             or len(sparse_asset_hist_balances[symbol]) < 2
