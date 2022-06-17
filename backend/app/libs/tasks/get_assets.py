@@ -2,9 +2,7 @@ from asyncio import run
 from datetime import datetime, timedelta
 from functools import reduce
 from json import dumps
-from concurrent.futures import ThreadPoolExecutor
-from os import sched_getaffinity
-from typing import Any, Optional
+from typing import Optional
 
 import pandas as pd
 from asgiref.sync import async_to_sync
