@@ -38,7 +38,7 @@ async def get_treasury_portfolio(
     return data
 
 
-async def get_treasury(portfolio: Dict[str, Any]) -> Treasury:
+async def get_treasury(portfolio: Dict[str, Any], whitelist: list[str]) -> Treasury:
 
     windows: List[HistoricalPrice] = []
     for item in portfolio["items"]:
@@ -57,15 +57,9 @@ async def get_treasury(portfolio: Dict[str, Any]) -> Treasury:
             )
         )
 
-    # These tokens don't receive a valid response from covalent's
-    # portfolio balances. So we blacklist them
-    blacklist = [
-        "0x6a113e4caa8aa29c02e535580027a1a3203f43fb",  # mEth
-        "0x7cf56db0f7781d478d5a96f6ee8e0b5cbaaf8ad2",  # OMIC / Omicron
-        "0x39abe870f44188f66c39eb54eb87ee8f080bf20e",  # Omicron covid
-        "0x3301ee63fb29f863f2333bd4466acb46cd8323e6",  # Akita Inu
-    ]
-
+    # Certain tokens a treasury may hold are noted as spam.
+    # To prevent these tokens from corrupting the data,
+    # we filter them out via a whitelist provided by tokenlists.org
     assets = [
         ERC20(
             item["contract_name"],
@@ -75,7 +69,7 @@ async def get_treasury(portfolio: Dict[str, Any]) -> Treasury:
         )
         for item in portfolio["items"]
         if item["holdings"][0]["close"]["quote"]
-        and item["contract_address"] not in blacklist
+        and item["contract_address"] in whitelist
         and item["holdings"]
         and item["holdings"][0]["close"]["quote"] < 10**18
     ]

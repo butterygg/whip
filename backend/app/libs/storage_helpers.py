@@ -19,6 +19,17 @@ def retrieve_treasuries_metadata() -> list[tuple[str, int]]:
     return [tuple(json.loads(t).values()) for t in db.lrange("treasuries", 0, -1)]
 
 
+def store_token_whitelist(address: str):
+    for _addr in db.lrange("whitelist", 0, -1):
+        if _addr == address:
+            return
+    db.rpush("whitelist", address)
+
+
+def retrieve_token_whitelist() -> list[str]:
+    return db.lrange("whitelist", 0, -1)
+
+
 BALANCES_KEY_TEMPLATE = "{address}_{symbol}"
 
 
