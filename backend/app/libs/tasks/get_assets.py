@@ -1,3 +1,4 @@
+from asyncio import run
 from datetime import datetime, timedelta
 from functools import reduce
 from json import dumps
@@ -24,7 +25,7 @@ from ..storage_helpers import (
     store_asset_hist_balance,
     store_asset_hist_performance,
 )
-from ..tokenlists import get_coingecko_token_list
+from ..tokenlists import get_all_token_lists
 from ..types import ERC20, Treasury
 
 load_dotenv()
@@ -33,11 +34,11 @@ load_dotenv()
 async def make_treasury(treasury_address: str, chain_id: int) -> Treasury:
     token_whitelist = retrieve_token_whitelist()
     if not token_whitelist:
-        get_coingecko_token_list()
+        await get_all_token_lists()
         token_whitelist = retrieve_token_whitelist()
     return await covalent.get_treasury(
         await covalent.get_treasury_portfolio(treasury_address, chain_id),
-        token_whitelist
+        token_whitelist,
     )
 
 
@@ -350,6 +351,11 @@ def setup_reload_list(sender, **_):
     sender.add_periodic_task(
         86400.0 * 3, reload_treasuries_list.s(), name="reload treasury list"
     )
+
+
+@celery_app.on_after_finalize.connect
+def start_whitelist_reload(**_):
+    reload_whitelist.apply_async()
 
 
 @celery_app.task
