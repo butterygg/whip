@@ -15,17 +15,22 @@ from ... import db
 from ...celery_main import app as celery_app
 from .. import bitquery, coingecko, covalent
 from ..pd_inter_calc import portfolio_midnight_filler
-from ..storage_helpers import (retrieve_treasuries_metadata,
-                               store_asset_correlations,
-                               store_asset_hist_balance,
-                               store_asset_hist_performance)
+from ..storage_helpers import (
+    retrieve_treasuries_metadata,
+    store_asset_correlations,
+    store_asset_hist_balance,
+    store_asset_hist_performance,
+)
 from ..tokenlists import get_all_token_lists, maybe_populate_whitelist
 from ..types import ERC20, Treasury
-from .treasury_ops import (add_statistics, apply_spread_percentages,
-                           calculate_correlations,
-                           calculate_risk_contributions,
-                           populate_bitquery_hist_eth_balance,
-                           populate_hist_tres_balance)
+from .treasury_ops import (
+    add_statistics,
+    apply_spread_percentages,
+    calculate_correlations,
+    calculate_risk_contributions,
+    populate_bitquery_hist_eth_balance,
+    populate_hist_tres_balance,
+)
 
 load_dotenv()
 
