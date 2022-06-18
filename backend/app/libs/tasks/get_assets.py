@@ -29,10 +29,7 @@ load_dotenv()
 
 
 async def make_treasury(treasury_address: str, chain_id: int) -> Treasury:
-    token_whitelist = retrieve_token_whitelist()
-    if not token_whitelist:
-        await get_all_token_lists()
-        token_whitelist = retrieve_token_whitelist()
+    token_whitelist = await maybe_populate_whitelist()
     return await covalent.get_treasury(
         await covalent.get_treasury_portfolio(treasury_address, chain_id),
         token_whitelist,
