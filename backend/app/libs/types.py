@@ -1,5 +1,5 @@
-import datetime
 from dataclasses import dataclass, field
+from datetime import datetime
 
 
 @dataclass
@@ -8,12 +8,12 @@ class ERC20:
     token_symbol: str
     token_address: str
     balance: float
-    risk_contribution: float = field(init=False, repr=False)
+    risk_contribution: float = field(init=False)
 
 
 @dataclass
 class Quote:
-    timestamp: datetime.datetime
+    timestamp: datetime
     quote_rate: float
 
 
@@ -44,18 +44,3 @@ class Treasury:
                 self.assets.pop(i)
                 break
             i += 1
-
-    def get_asset(self, symbol: str):
-        return next(asset for asset in self.assets if asset.token_symbol == symbol)
-
-
-@dataclass
-class Transfer:
-    timestamp: datetime.datetime
-    balance: float  # balance in usd after the transfer
-
-
-@dataclass
-class Price:
-    timestamp: datetime.datetime
-    value: float

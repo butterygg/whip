@@ -53,7 +53,7 @@ class Portfolio:
         end: str,
     ):
         histprices = {
-            symbol: athp.loc[start:end]
+            symbol: athp.set_index("timestamp").loc[start:end]
             for symbol, athp in augmented_token_hist_prices.items()
         }
         totalbalance = augmented_total_balance.loc[start:end]

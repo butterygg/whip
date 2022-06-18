@@ -1,7 +1,7 @@
 services:
   redis:
     profiles: ["backend"]
-    image: redis:6.2.3
+    image: redis
     networks:
       - whip_nw
     ports:

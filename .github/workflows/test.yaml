@@ -52,18 +52,3 @@ jobs:
       - name: Isort check
         working-directory: ./backend
         run: isort --check .
-
-  python-tests:
-    runs-on: ubuntu-18.04
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v3
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: "pip"
-      - name: Install
-        working-directory: ./backend
-        run: pip install -r dev-requirements.txt
-      - name: Pytest
-        working-directory: ./backend
-        run: pytest
