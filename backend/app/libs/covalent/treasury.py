@@ -71,7 +71,6 @@ async def get_treasury(portfolio: Dict[str, Any], whitelist: list[str]) -> Treas
         if item["holdings"][0]["close"]["quote"]
         and item["contract_address"] in whitelist
         and item["holdings"]
-        and item["holdings"][0]["close"]["quote"] < 10**18
     ]
 
     return Treasury(portfolio["address"], assets, windows)
