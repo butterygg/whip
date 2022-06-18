@@ -17,12 +17,11 @@ from ..pd_inter_calc import make_daily_hist_balance
 from ..series import make_hist_price_series, make_hist_transfer_series
 from ..storage_helpers import (
     retrieve_treasuries_metadata,
-    retrieve_token_whitelist,
     store_asset_correlations,
     store_asset_hist_balance,
     store_asset_hist_performance,
 )
-from ..tokenlists import get_all_token_lists
+from ..tokenlists import get_all_token_lists, maybe_populate_whitelist
 from ..types import ERC20, Treasury
 
 load_dotenv()
