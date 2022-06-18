@@ -22,7 +22,6 @@ from ..series import make_hist_price_series, make_hist_transfer_series
 from ..storage_helpers import (
     get_and_store_treasury_list,
     retrieve_treasuries_metadata,
-    retrieve_token_whitelist,
     store_asset_correlations,
     store_asset_hist_balance,
     store_asset_hist_performance,
