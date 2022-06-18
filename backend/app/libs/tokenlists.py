@@ -1,7 +1,8 @@
 from asyncio import gather
+
 from httpx import AsyncClient, Timeout
 
-from .storage_helpers import store_token_whitelist
+from .storage_helpers import retrieve_token_whitelist, store_token_whitelist
 
 
 async def get_token_list(token_list: str):
@@ -9,10 +10,10 @@ async def get_token_list(token_list: str):
     async with AsyncClient(timeout=timeout) as client:
         resp = await client.get(token_list)
 
-        tokens = resp.json()["tokens"]
-        for token in tokens:
-            if token["chainId"] == 1:
-                store_token_whitelist(token["address"])
+        whitelist = [
+            token["address"] for token in resp.json()["tokens"] if token["chainId"] == 1
+        ]
+        store_token_whitelist(whitelist)
 
 
 async def get_coingecko_token_list():
@@ -25,3 +26,11 @@ async def get_cmc_token_list():
 
 async def get_all_token_lists():
     await gather(get_coingecko_token_list(), get_cmc_token_list())
+
+
+async def maybe_populate_whitelist() -> list[str]:
+    token_whitelist = retrieve_token_whitelist()
+    if not token_whitelist:
+        await get_all_token_lists()
+        token_whitelist = retrieve_token_whitelist()
+    return token_whitelist
