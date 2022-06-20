@@ -363,7 +363,7 @@ def setup_init_tasks(**_):
 
 
 @celery_app.on_after_finalize.connect
-def start_whitelist_reload(**_):
+def setup_init_tasks(**_):
     reload_whitelist.apply_async()
 
 
