@@ -28,11 +28,6 @@ class MockResponse:
         }
 
 
-class MockAsyncClient:
-    def get(self, _):
-        return MockResponse()
-
-
 class TestTokenList:
     log_resp = ""
 
