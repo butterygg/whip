@@ -6,6 +6,7 @@ from typing import Optional
 
 import pandas as pd
 from asgiref.sync import async_to_sync
+from celery.schedules import crontab
 from dateutil.tz import UTC
 from dateutil.utils import today
 from dotenv import load_dotenv
@@ -338,9 +339,15 @@ def setup_periodic_tasks(sender, **_):
         30.0, reload_treasuries_data.s(), name="reload treasuries data"
     )
 
+    sender.add_periodic_task(
+        crontab(hour=0, minute=0, day_of_week=[1], nowfun=datetime.now),
+        reload_whitelist.s(),
+        name="reload token whitelist",
+    )
+
 
 @celery_app.on_after_finalize.connect
-def start_whitelist_reload(**_):
+def setup_init_tasks(**_):
     reload_whitelist.apply_async()
 
 
