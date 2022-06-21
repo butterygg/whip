@@ -8,37 +8,34 @@ CHAIN_ID = 1
 
 def store_treasury_metadata(
     provider: Union[redis.Redis, redis.client.Pipeline],
-    address: str,
+    addresses: list[str],
     chain_id: int = CHAIN_ID,
 ):
-    if provider.hexists("treasuries", address):
-        return
-    provider.hset("treasuries", address, json.dumps({"chain_id": chain_id}))
+    payload = [
+        json.dumps({"address": address, "chain_id": chain_id}) for address in addresses
+    ]
+    provider.sadd("treasuries", *payload)
 
 
 def retrieve_treasuries_metadata(
     provider: Union[redis.Redis, redis.client.Pipeline]
 ) -> list[tuple[str, int]]:
-    blacklist = [
-        "0x283Af0B28c62C092C9727F1Ee09c02CA627EB7F5",
-        "0x4441776e6a5d61fa024a5117bfc26b953ad1f425",
-        "0x4750c43867ef5f89869132eccf19b9b6c4286e1a",
-        "0x4b4e140d1f131fdad6fb59c13af796fd194e4135",
-        "0x3d30b1ab88d487b0f3061f40de76845bec3f1e94",
+    treasuries = [
+        tuple(json.loads(t).values()) for t in provider.smembers("treasuries")
     ]
-    return [
-        (address, json.loads(value)["chain_id"])
-        for address, value in provider.hgetall("treasuries").items()
-        if address not in blacklist
-    ]
+    return treasuries
 
 
-def store_token_whitelist(address: list[str]):
-    db.sadd("whitelist", *address)
+def store_token_whitelist(
+    address: list[str], provider: Union[redis.Redis, redis.client.Pipeline]
+):
+    provider.sadd("whitelist", *address)
 
 
-def retrieve_token_whitelist() -> list[str]:
-    return db.smembers("whitelist")
+def retrieve_token_whitelist(
+    provider: Union[redis.Redis, redis.client.Pipeline]
+) -> list[str]:
+    return provider.smembers("whitelist")
 
 
 BALANCES_KEY_TEMPLATE = "{address}_{symbol}"

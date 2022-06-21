@@ -1,17 +1,18 @@
 from asyncio import run
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from functools import reduce
 from json import dumps
-from concurrent.futures import ThreadPoolExecutor
-from os import sched_getaffinity
 from typing import Any, Optional
 
 import pandas as pd
 from asgiref.sync import async_to_sync
 from celery.schedules import crontab
+from celery.utils.log import get_task_logger
 from dateutil.tz import UTC
 from dateutil.utils import today
 from dotenv import load_dotenv
+from httpx import ReadTimeout
 
 from ... import db
 from ...celery_main import app as celery_app
@@ -32,7 +33,7 @@ load_dotenv()
 
 
 async def make_treasury(treasury_address: str, chain_id: int) -> Treasury:
-    token_whitelist = await maybe_populate_whitelist()
+    token_whitelist = await maybe_populate_whitelist(db)
     return await covalent.get_treasury(
         await covalent.get_treasury_portfolio(treasury_address, chain_id),
         token_whitelist,
@@ -361,8 +362,30 @@ def setup_init_tasks(**_):
     reload_whitelist.apply_async()
 
 
-@celery_app.task
-def reload_treasuries_stats():
+LOCK_EXPIRE = 60 * 20  # lock expires in 20 minutes
+
+
+@contextmanager
+def redis_lock(lock_id: str, oid: Any):
+    status = db.setnx(lock_id, oid)
+    if status:
+        db.expire(lock_id, LOCK_EXPIRE)
+    yield status
+
+
+def check_lock(lock_id: str, task_id: Any, oid, logger):
+    with redis_lock(lock_id, oid) as acquired:
+        if not acquired:
+            logger.info("task %s already running, revoking...", task_id)
+            celery_app.control.revoke(task_id, terminate=True)
+
+
+@celery_app.task(bind=True)
+def reload_treasuries_stats(self):
+    logger = get_task_logger(self.request.id)
+    check_lock(f"{self.name}-lock", self.request.id, celery_app.oid, logger)
+    db.set("curr_task", self.request.id)
+
     end_date: datetime = today(UTC)
     start_date: datetime = end_date - timedelta(days=365)
 
@@ -376,14 +399,29 @@ def reload_treasuries_stats():
 
     for treasury_metadata in treasuries:
         with db.pipeline() as pipe:
-            (
-                treasury,
-                augmented_token_hist_prices,
-                asset_hist_balances,
-                _,
-            ) = async_to_sync(build_treasury_with_assets)(
-                *treasury_metadata, start, end
-            )
+            try:
+                (
+                    treasury,
+                    augmented_token_hist_prices,
+                    asset_hist_balances,
+                    _,
+                ) = async_to_sync(build_treasury_with_assets)(
+                    *treasury_metadata, start, end
+                )
+            except TypeError:
+                # This error is likely caused by
+                # backend.app.libs.pd_inter_calc.make_daily_hist_balance
+                logger.error(  # [FIXME]
+                    "error reducing augemented treasury balance for %s",
+                    treasury_metadata[0],
+                )
+                continue
+            except ReadTimeout:
+                logger.error(
+                    "error receiving a covalent portfolio_v2 response for %s, continuing",
+                    treasury_metadata[0],
+                )
+                continue
 
             for symbol, asset_hist_performance in augmented_token_hist_prices.items():
                 store_asset_hist_performance(
@@ -391,11 +429,9 @@ def reload_treasuries_stats():
                     dumps(
                         {
                             ts.isoformat(): value
-                            for ts, value in asset_hist_performance.set_index(
-                                "timestamp"
-                            )
-                            .to_dict(orient="index")
-                            .items()
+                            for ts, value in asset_hist_performance.to_dict(
+                                orient="index"
+                            ).items()
                         }
                     ),
                     pipe,
@@ -420,6 +456,7 @@ def reload_treasuries_stats():
             pipe.execute()
 
 
-@celery_app.task
-def reload_treasuries_list():
-    cache_treasury_list(db)
+@celery_app.task(bind=True)
+def reload_whitelist(self):
+    db.set("curr_task", self.request.id)
+    run(get_all_token_lists(db))
