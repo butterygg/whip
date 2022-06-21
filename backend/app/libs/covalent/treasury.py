@@ -1,12 +1,14 @@
 # pylint: disable=duplicate-code
 import json
+from asyncio import sleep
+from logging import getLogger
 from os import getenv
-from time import sleep
-from typing import Any, Dict, List, Optional
+from typing import Any, Coroutine, Dict, List, Optional
 
 from billiard.pool import MaybeEncodingError
 import dateutil
-from httpx import AsyncClient, Timeout, ReadTimeout
+from celery.utils.log import get_task_logger
+from httpx import AsyncClient, Timeout
 from pytz import UTC
 
 from ... import db
@@ -16,9 +18,16 @@ CACHE_HASH = "covalent_treasury"
 CACHE_KEY_TEMPLATE = "{address}_{chain_id}_{date}"
 
 
+async def retry(method: Coroutine, url: str, await_time: float):
+    await sleep(await_time)
+    await method(url)
+
+
 async def get_treasury_portfolio(
     treasury_address: str, chain_id: Optional[int] = 1
 ) -> Dict[str, Any]:
+    task_id = db.get("curr_task")
+    logger = get_task_logger(task_id) if task_id else getLogger(__name__)
     cache_date = dateutil.utils.today(UTC).strftime("%Y-%m-%d")
     cache_key = CACHE_KEY_TEMPLATE.format(
         address=treasury_address, chain_id=chain_id, date=cache_date
@@ -27,32 +36,19 @@ async def get_treasury_portfolio(
         return json.loads(db.hget(CACHE_HASH, cache_key))
 
     timeout = Timeout(10.0, read=30.0, connect=45.0)
-    async with AsyncClient(
-        headers={
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            + "AppleWebKit/537.36 (KHTML, like Gecko) "
-            + "Chrome/100.0.4896.127 Safari/537.36 Edg/100.0.1185.50"
-        },
-        timeout=timeout,
-    ) as client:
+    async with AsyncClient(timeout=timeout) as client:
+        url = (
+            f"https://api.covalenthq.com/v1/{chain_id}/address/{treasury_address}/"
+            + f"portfolio_v2/?&key=ckey_{getenv('COVALENT_KEY')}"
+        )
         try:
-            resp = await client.get(
-                f"https://api.covalenthq.com/v1/{chain_id}/address/{treasury_address}/"
-                + f"portfolio_v2/?&key=ckey_{getenv('COVALENT_KEY')}"
-            )
-        except MaybeEncodingError:
-            sleep(5)
-            resp = await client.get(
-                f"https://api.covalenthq.com/v1/{chain_id}/address/{treasury_address}/"
-                + f"portfolio_v2/?&key=ckey_{getenv('COVALENT_KEY')}"
-            )
-        except ReadTimeout:
-            resp = await client.get(
-                f"https://api.covalenthq.com/v1/{chain_id}/address/{treasury_address}/"
-                + f"portfolio_v2/?&key=ckey_{getenv('COVALENT_KEY')}"
-            )
+            resp = await client.get(url)
 
-        data = resp.json()["data"]
+            data = resp.json()["data"]
+        except MaybeEncodingError:
+            _msg = "unable to get a response from %s, retrying..."
+            logger.warning(_msg, url)
+            await retry(client.get, url, 10.0)
 
     db.hset(CACHE_HASH, cache_key, json.dumps(data))
 

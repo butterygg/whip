@@ -1,7 +1,6 @@
 import json
 import os
 from dataclasses import dataclass
-from traceback import print_exception
 from typing import Any
 
 import dateutil
@@ -52,8 +51,7 @@ async def _get_data(treasury_address: str) -> Any:
         try:
             data = resp.json()["data"]
             return data["ethereum"]["address"][0]["balances"][0]["history"]
-        except TypeError as exc:
-            print_exception(type(exc), exc, exc.__traceback__)
+        except TypeError:
             return []
 
 
