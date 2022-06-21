@@ -338,16 +338,9 @@ async def build_spread_treasury_with_assets(
 
 
 @celery_app.on_after_finalize.connect
-def setup_reload_stats_tasks(sender, **_):
+def setup_periodic_tasks(sender, **_):
     sender.add_periodic_task(
-        86400.0, reload_treasuries_stats.s(), name="reload treasuries stats"
-    )
-
-
-@celery_app.on_after_finalize.connect
-def setup_reload_list(sender, **_):
-    sender.add_periodic_task(
-        86400.0 * 3, reload_treasuries_list.s(), name="reload treasury list"
+        86400.0, reload_treasuries_stats.s(), name="reload treasury list"
     )
 
     sender.add_periodic_task(
