@@ -33,7 +33,7 @@ load_dotenv()
 
 
 async def make_treasury(treasury_address: str, chain_id: int) -> Treasury:
-    token_whitelist = await maybe_populate_whitelist(db)
+    token_whitelist = await maybe_populate_whitelist()
     return await covalent.get_treasury(
         await covalent.get_treasury_portfolio(treasury_address, chain_id),
         token_whitelist,
@@ -338,7 +338,7 @@ async def build_spread_treasury_with_assets(
 
 
 @celery_app.on_after_finalize.connect
-def setup_reload_stats_tasks(sender, **_):
+def setup_periodic_tasks(sender, **_):
     sender.add_periodic_task(
         crontab(hour=0, minute=30, nowfun=datetime.now),
         reload_treasuries_stats.s(),
@@ -357,11 +357,6 @@ def setup_reload_list(sender, **_):
         reload_whitelist.s(),
         name="reload token whitelist",
     )
-
-
-@celery_app.on_after_finalize.connect
-def setup_init_tasks(**_):
-    reload_whitelist.apply_async()
 
 
 @celery_app.on_after_finalize.connect
@@ -465,6 +460,7 @@ def reload_treasuries_stats(self):
 
 @celery_app.task(bind=True)
 def reload_whitelist(self):
+    db.set("curr_task", self.request.id)
     try:
         whitelist = run(store_and_get_whitelists())
         assert whitelist
@@ -475,6 +471,5 @@ def reload_whitelist(self):
 
 @celery_app.task(bind=True)
 def reload_treasuries_list(self):
-    cache_treasury_list(db)
     db.set("curr_task", self.request.id)
-    run(store_and_get_whitelists(db))
+    cache_treasury_list(db)
