@@ -34,16 +34,8 @@ def store_token_whitelist(
 
 def retrieve_token_whitelist(
     provider: Union[redis.Redis, redis.client.Pipeline]
-) -> set[str]:
+) -> list[str]:
     return provider.smembers("whitelist")
-
-
-def store_token_whitelist(address: list[str]):
-    db.sadd("whitelist", *address)
-
-
-def retrieve_token_whitelist() -> list[str]:
-    return db.smembers("whitelist")
 
 
 BALANCES_KEY_TEMPLATE = "{address}_{symbol}"
