@@ -345,9 +345,6 @@ def setup_periodic_tasks(sender, **_):
         name="reload treasuries stats",
     )
 
-
-@celery_app.on_after_finalize.connect
-def setup_reload_list(sender, **_):
     sender.add_periodic_task(
         86400.0 * 3, reload_treasuries_list.s(), name="reload treasury list"
     )
