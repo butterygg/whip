@@ -4,7 +4,7 @@ from ..pd_inter_calc import make_daily_hist_balance
 from ..types import Treasury
 from .get_assets import (
     reload_treasuries_stats,
-    setup_reload_stats_tasks,
-    reload_treasuries_list,
-    setup_reload_list,
+    reload_whitelist,
+    setup_init_tasks,
+    setup_periodic_tasks,
 )

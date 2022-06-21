@@ -2,6 +2,7 @@ from asyncio import gather
 from json.decoder import JSONDecodeError
 from typing import Any, Union
 
+import redis
 from celery.utils.log import get_task_logger
 from httpx import AsyncClient, HTTPStatusError, RequestError, Timeout
 
