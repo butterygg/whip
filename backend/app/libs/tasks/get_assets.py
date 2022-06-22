@@ -2,11 +2,13 @@ from asyncio import run
 from datetime import datetime, timedelta
 from functools import reduce
 from json import dumps
+from multiprocessing import get_logger
 from typing import Optional
 
 import pandas as pd
 from asgiref.sync import async_to_sync
 from celery.schedules import crontab
+from celery.utils.log import get_task_logger
 from dateutil.tz import UTC
 from dateutil.utils import today
 from dotenv import load_dotenv
@@ -22,7 +24,7 @@ from ..storage_helpers import (
     store_asset_hist_balance,
     store_asset_hist_performance,
 )
-from ..tokenlists import get_all_token_lists, maybe_populate_whitelist
+from ..tokenlists import store_and_get_whitelists, maybe_populate_whitelist
 from ..types import ERC20, Treasury
 
 load_dotenv()
@@ -405,6 +407,11 @@ def reload_treasuries_data():
             pipe.execute()
 
 
-@celery_app.task
-def reload_whitelist():
-    run(get_all_token_lists())
+@celery_app.task(bind=True)
+def reload_whitelist(self):
+    try:
+        whitelist = run(store_and_get_whitelists())
+        assert whitelist
+    except AssertionError:
+        logger = get_task_logger(self.request.id)
+        logger.error("reload whitelist task failed: empty whitelist")
