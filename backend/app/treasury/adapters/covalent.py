@@ -8,7 +8,7 @@ from httpx import AsyncClient, Timeout
 from pytz import UTC
 
 from ... import db
-from ..types import ERC20, HistoricalPrice, Quote, Treasury
+from ..models import ERC20, HistoricalPrice, Quote, Treasury
 
 CACHE_HASH = "covalent_treasury"
 CACHE_KEY_TEMPLATE = "{address}_{chain_id}_{date}"
