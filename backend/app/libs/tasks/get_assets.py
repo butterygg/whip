@@ -2,7 +2,6 @@ from asyncio import run
 from datetime import datetime, timedelta
 from functools import reduce
 from json import dumps
-from multiprocessing import get_logger
 from typing import Optional
 
 import pandas as pd
