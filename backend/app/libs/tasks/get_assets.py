@@ -337,7 +337,9 @@ async def build_spread_treasury_with_assets(
 @celery_app.on_after_finalize.connect
 def setup_periodic_tasks(sender, **_):
     sender.add_periodic_task(
-        30.0, reload_treasuries_data.s(), name="reload treasuries data"
+        crontab(hour=0, minute=30, nowfun=datetime.now),
+        reload_treasuries_data.s(),
+        name="reload treasuries data",
     )
 
     sender.add_periodic_task(
