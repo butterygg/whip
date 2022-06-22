@@ -1,6 +1,6 @@
-from asyncio import gather, sleep
+from asyncio import gather
 from json.decoder import JSONDecodeError
-from typing import Coroutine
+from typing import Any, Union
 
 from celery.utils.log import get_task_logger
 from httpx import AsyncClient, HTTPStatusError, RequestError, Timeout
@@ -8,64 +8,68 @@ from httpx import AsyncClient, HTTPStatusError, RequestError, Timeout
 from .storage_helpers import retrieve_token_whitelist, store_token_whitelist
 
 
-async def retry(method: Coroutine, url: str, await_time: float):
-    await sleep(await_time)
-    await method(url)
-
-
-async def get_token_list(token_list: str):
+async def get_token_list(token_list: str) -> list[Union[str, None]]:
     timeout = Timeout(10.0, read=30.0, connect=15.0)
-    logger = get_task_logger(__name__)
+    whitelist = []
     async with AsyncClient(timeout=timeout) as client:
-        try:
-            resp = await client.get(token_list)
-            resp.raise_for_status()
-        except HTTPStatusError:
-            if resp.status_code == 404:
-                logger.warn("404 response for %s, aborting...", token_list)
-                return
-            logger.error("error receiving token list for %s, retrying...", token_list)
-            await retry(client.get, token_list, 10.0)
-        except RequestError:
-            logger.error("error requesting token list for %s, retrying...", token_list)
-            await retry(client.get, token_list, 10.0)
+        resp = await client.get(token_list)
+        resp.raise_for_status()
 
-        try:
-            whitelist = [
-                token["address"]
-                for token in resp.json()["tokens"]
-                if token["chainId"] == 1
-            ]
-            store_token_whitelist(whitelist)
-        except JSONDecodeError:
-            error_str = (
-                "unable to decode response from %s"
-                + "\n please ensure that `resp.data` is a json formatted string"
+        whitelist = [
+            token["address"] for token in resp.json()["tokens"] if token["chainId"] == 1
+        ]
+    return whitelist
+
+
+async def get_coingecko_token_list() -> tuple[str, list[Union[str, None]]]:
+    datasource = "https://tokens.coingecko.com/uniswap/all.json"
+    return (datasource, await get_token_list(datasource))
+
+
+async def get_cmc_token_list() -> tuple[str, list[Union[str, None]]]:
+    datasource = "https://api.coinmarketcap.com/data-api/v3/uniswap/all.json"
+    return (datasource, await get_token_list(datasource))
+
+
+async def get_all_token_lists() -> list[Union[str, None]]:
+    def flatten_2d(input_list: list[list[Any]]) -> list[Any]:
+        payload = []
+        for sublist in input_list:
+            payload.extend(sublist)
+        return payload
+
+    return flatten_2d(
+        [
+            token_list
+            for _, token_list in await gather(
+                get_coingecko_token_list(), get_cmc_token_list()
             )
-            logger.error(error_str, token_list)
-            return
-        except KeyError:
-            logger.error(
-                "the token list url given is likely not supported: %s", token_list
-            )
-            return
+        ]
+    )
 
 
-async def get_coingecko_token_list():
-    await get_token_list("https://tokens.coingecko.com/uniswap/all.json")
+async def store_and_get_whitelists() -> list[Union[str, None]]:
+    try:
+        latest_whitelist = await get_all_token_lists()
+    except (HTTPStatusError, RequestError, JSONDecodeError, KeyError) as error:
+        logger = get_task_logger(__name__)
+        if error.__class__ in [HTTPStatusError, RequestError]:
+            logger.error("error receiving token list from API", exc_info=error)
+            return []
+        logger.error("error processing token list API repsonse", exc_info=error)
+        return []
+
+    store_token_whitelist(latest_whitelist)
+    return latest_whitelist
 
 
-async def get_cmc_token_list():
-    await get_token_list("https://api.coinmarketcap.com/data-api/v3/uniswap/all.json")
+async def _maybe_populate_whitelist(existing_whitelist: list[Union[str, None]]):
+    latest_whitelist = existing_whitelist
+    if not latest_whitelist:
+        latest_whitelist.extend(await store_and_get_whitelists())
+    return latest_whitelist
 
 
-async def get_all_token_lists():
-    await gather(get_coingecko_token_list(), get_cmc_token_list())
-
-
-async def maybe_populate_whitelist() -> list[str]:
-    token_whitelist = retrieve_token_whitelist()
-    if not token_whitelist:
-        await get_all_token_lists()
-        token_whitelist = retrieve_token_whitelist()
+async def maybe_populate_whitelist() -> list[Union[str, None]]:
+    token_whitelist = await _maybe_populate_whitelist(retrieve_token_whitelist())
     return token_whitelist

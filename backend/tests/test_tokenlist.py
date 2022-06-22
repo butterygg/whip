@@ -1,11 +1,14 @@
 from json import loads
-from logging import Logger
+from json.decoder import JSONDecodeError
 
-from celery.utils import log
 from httpx import AsyncClient, HTTPStatusError, Request, Response
-from pytest import MonkeyPatch, mark
+from pytest import MonkeyPatch, mark, raises
 
-from backend.app.libs.tokenlists import get_token_list, maybe_populate_whitelist
+from backend.app.libs.tokenlists import (
+    get_token_list,
+    maybe_populate_whitelist,
+    store_and_get_whitelists,
+)
 
 
 class MockResponse:
@@ -29,23 +32,25 @@ class MockResponse:
 
 
 class TestTokenList:
-    log_resp = ""
-
     async def mock_get_uniswap(self, _: str):
         return MockResponse()
 
     @mark.asyncio
     async def test_get_token_list_success(self, monkeypatch: MonkeyPatch):
-        monkeypatch.setattr(log, "get_task_logger", Logger("mock_task_logger"))
-
         monkeypatch.setattr(AsyncClient, "get", self.mock_get_uniswap)
+
+        db_payload = {}
         monkeypatch.setattr(
-            "backend.app.libs.tokenlists.store_token_whitelist",
-            lambda x: None,
+            "backend.app.libs.storage_helpers.db.sadd",
+            lambda key, *payload: db_payload.update({key: set(payload)}),
             raising=True,
         )
-        await get_token_list("https://tokens.coingecko.com/uniswap/all.json")
-        assert True
+
+        await store_and_get_whitelists()
+        assert db_payload["whitelist"]
+        assert len(db_payload["whitelist"]) == 2
+        assert "0x6d6f636b5f31" in db_payload["whitelist"]
+        assert "0x6d6f636b5f32" in db_payload["whitelist"]
 
     @mark.asyncio
     @mark.parametrize(
@@ -86,25 +91,19 @@ class TestTokenList:
     async def test_get_token_list_bad_resp_json(
         self, monkeypatch: MonkeyPatch, json_resp
     ):
-        def mock_error_log(_, error_str: str, arg):
-            self.log_resp = error_str.replace("%s", arg)
-
         async def async_return(*_):
             return MockResponse()
-
-        monkeypatch.setattr(Logger, "error", mock_error_log, raising=True)
 
         url = "https://tokens.coingecko.com/uniswap/all.json"
         monkeypatch.setattr(AsyncClient, "get", async_return)
         monkeypatch.setattr(MockResponse, "json", json_resp)
-        await get_token_list(url)
-
-        assert (
-            self.log_resp == f"the token list url given is likely not supported: {url}"
-        )
+        with raises(KeyError):
+            await get_token_list(url)
 
     @mark.asyncio
-    async def test_maybe_populate_whitelist_success(self, monkeypatch: MonkeyPatch):
+    async def test_maybe_populate_whitelist_success_preprop(
+        self, monkeypatch: MonkeyPatch
+    ):
         monkeypatch.setattr(
             "backend.app.libs.tokenlists.retrieve_token_whitelist",
             lambda: ["0x6d6f636b5f746f6b656e5f31", "0x6d6f636b5f746f6b656e5f32"],
@@ -117,9 +116,6 @@ class TestTokenList:
 
     @mark.asyncio
     async def test_get_token_list_resp_err_404(self, monkeypatch: MonkeyPatch):
-        def mock_warn_log(_, error_str: str, arg):
-            self.log_resp = error_str.replace("%s", arg)
-
         def raise_http_status_error(_):
             raise HTTPStatusError(
                 "mocked http status error",
@@ -127,23 +123,18 @@ class TestTokenList:
                 response=Response(404),
             )
 
-        monkeypatch.setattr(log, "get_task_logger", Logger("mock_task_logger"))
-        monkeypatch.setattr(Logger, "warn", mock_warn_log, raising=True)
-
         monkeypatch.setattr(AsyncClient, "get", self.mock_get_uniswap)
         monkeypatch.setattr(MockResponse, "status_code", 404)
         monkeypatch.setattr(MockResponse, "raise_for_status", raise_http_status_error)
 
         url = "https://tokens.coingecko.com/uniswap/all.json"
-        await get_token_list(url)
+        with raises(HTTPStatusError) as error:
+            await get_token_list(url)
 
-        assert self.log_resp == f"404 response for {url}, aborting..."
+            assert "mocked http status error" in str(error.value)
 
     @mark.asyncio
     async def test_get_token_list_resp_err_5xx(self, monkeypatch: MonkeyPatch):
-        def mock_error_log(_, error_str: str, arg):
-            self.log_resp = error_str.replace("%s", arg)
-
         def raise_http_status_error(_):
             raise HTTPStatusError(
                 "mocked http status error",
@@ -151,47 +142,21 @@ class TestTokenList:
                 response=Response(501),
             )
 
-        async def mock_retry(*_):
-            pass
-
-        monkeypatch.setattr(log, "get_task_logger", Logger("mock_task_logger"))
-        monkeypatch.setattr(Logger, "error", mock_error_log, raising=True)
-
         monkeypatch.setattr(AsyncClient, "get", self.mock_get_uniswap)
         monkeypatch.setattr(MockResponse, "status_code", 501)
         monkeypatch.setattr(MockResponse, "raise_for_status", raise_http_status_error)
-        monkeypatch.setattr(
-            "backend.app.libs.tokenlists.store_token_whitelist",
-            lambda _: None,
-            raising=True,
-        )
-        monkeypatch.setattr(
-            "backend.app.libs.tokenlists.retry",
-            mock_retry,
-            raising=True,
-        )
 
         url = "https://tokens.coingecko.com/uniswap/all.json"
-        await get_token_list(url)
+        with raises(HTTPStatusError) as error:
+            await get_token_list(url)
 
-        assert self.log_resp == f"error receiving token list for {url}, retrying..."
+            assert "mocked http status error" in str(error.value)
 
     @mark.asyncio
     async def test_get_token_list_json_err(self, monkeypatch: MonkeyPatch):
-        def mock_error_log(_, error_str: str, arg):
-            self.log_resp = error_str.replace("%s", arg)
-
-        monkeypatch.setattr(log, "get_task_logger", Logger("mock_task_logger"))
-        monkeypatch.setattr(Logger, "error", mock_error_log, raising=True)
-
         monkeypatch.setattr(AsyncClient, "get", self.mock_get_uniswap)
         monkeypatch.setattr(MockResponse, "json", lambda _: loads("bad json response"))
 
         url = "https://tokens.coingecko.com/uniswap/all.json"
-        await get_token_list(url)
-
-        error_str = (
-            f"unable to decode response from {url}"
-            + "\n please ensure that `resp.data` is a json formatted string"
-        )
-        assert self.log_resp == error_str
+        with raises(JSONDecodeError):
+            await get_token_list(url)
