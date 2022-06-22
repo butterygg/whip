@@ -23,7 +23,7 @@ from ..storage_helpers import (
     store_asset_hist_balance,
     store_asset_hist_performance,
 )
-from ..tokenlists import store_and_get_whitelists, maybe_populate_whitelist
+from ..tokenlists import maybe_populate_whitelist, store_and_get_whitelists
 from ..types import ERC20, Treasury
 
 load_dotenv()
