@@ -2,10 +2,10 @@ from asyncio import gather
 from json.decoder import JSONDecodeError
 from typing import Any, Union
 
-import redis
 from celery.utils.log import get_task_logger
 from httpx import AsyncClient, HTTPStatusError, RequestError, Timeout
 
+from .. import db
 from .storage_helpers import retrieve_token_whitelist, store_token_whitelist
 
 
@@ -60,7 +60,7 @@ async def store_and_get_whitelists() -> list[Union[str, None]]:
         logger.error("error processing token list API repsonse", exc_info=error)
         return []
 
-    store_token_whitelist(latest_whitelist)
+    store_token_whitelist(latest_whitelist, db)
     return latest_whitelist
 
 
@@ -72,5 +72,5 @@ async def _maybe_populate_whitelist(existing_whitelist: list[Union[str, None]]):
 
 
 async def maybe_populate_whitelist() -> list[Union[str, None]]:
-    token_whitelist = await _maybe_populate_whitelist(retrieve_token_whitelist())
+    token_whitelist = await _maybe_populate_whitelist(retrieve_token_whitelist(db))
     return token_whitelist
