@@ -63,13 +63,8 @@ async def store_and_get_whitelists() -> list[Union[str, None]]:
     return latest_whitelist
 
 
-async def _maybe_populate_whitelist(existing_whitelist: list[Union[str, None]]):
-    latest_whitelist = existing_whitelist
+async def maybe_populate_whitelist() -> list[Union[str, None]]:
+    latest_whitelist = list(retrieve_token_whitelist())
     if not latest_whitelist:
         latest_whitelist.extend(await store_and_get_whitelists())
     return latest_whitelist
-
-
-async def maybe_populate_whitelist() -> list[Union[str, None]]:
-    token_whitelist = await _maybe_populate_whitelist(retrieve_token_whitelist())
-    return token_whitelist
