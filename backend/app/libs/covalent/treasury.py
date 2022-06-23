@@ -24,13 +24,13 @@ async def get_treasury_portfolio(
     if db.hexists(CACHE_HASH, cache_key):
         return json.loads(db.hget(CACHE_HASH, cache_key))
 
-    timeout = Timeout(10.0, read=30.0, connect=45.0)
+    timeout = Timeout(10.0, read=20.0, connect=25.0)
     async with AsyncClient(timeout=timeout) as client:
-        resp = await client.get(
+        url = (
             f"https://api.covalenthq.com/v1/{chain_id}/address/{treasury_address}/"
             + f"portfolio_v2/?&key=ckey_{getenv('COVALENT_KEY')}"
         )
-
+        resp = await client.get(url)
         data = resp.json()["data"]
 
     db.hset(CACHE_HASH, cache_key, json.dumps(data))

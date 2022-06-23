@@ -1,13 +1,20 @@
 from json import loads
 from json.decoder import JSONDecodeError
 
-from httpx import AsyncClient, HTTPStatusError, Request, Response
+from httpx import AsyncClient
 from pytest import MonkeyPatch, mark, raises
 
-from backend.app.libs.tokenlists import (
+from backend.app.libs.storage_helpers.tokenlists import (
     get_token_list,
     maybe_populate_whitelist,
     store_and_get_whitelists,
+)
+
+from .conftest import (
+    HTTPStatusError,
+    MockProvider,
+    raise_http_status_error_404,
+    raise_http_status_error_501,
 )
 
 
@@ -39,18 +46,13 @@ class TestTokenList:
     async def test_get_token_list_success(self, monkeypatch: MonkeyPatch):
         monkeypatch.setattr(AsyncClient, "get", self.mock_get_uniswap)
 
-        db_payload = {}
-        monkeypatch.setattr(
-            "backend.app.libs.storage_helpers.db.sadd",
-            lambda key, *payload: db_payload.update({key: set(payload)}),
-            raising=True,
-        )
+        mocked_provider = MockProvider()
 
-        await store_and_get_whitelists()
-        assert db_payload["whitelist"]
-        assert len(db_payload["whitelist"]) == 2
-        assert "0x6d6f636b5f31" in db_payload["whitelist"]
-        assert "0x6d6f636b5f32" in db_payload["whitelist"]
+        await store_and_get_whitelists(mocked_provider)
+        assert mocked_provider.db_payload["whitelist"]
+        assert len(mocked_provider.db_payload["whitelist"]) == 2
+        assert "0x6d6f636b5f31" in mocked_provider.db_payload["whitelist"]
+        assert "0x6d6f636b5f32" in mocked_provider.db_payload["whitelist"]
 
     @mark.asyncio
     @mark.parametrize(
@@ -105,27 +107,22 @@ class TestTokenList:
         self, monkeypatch: MonkeyPatch
     ):
         monkeypatch.setattr(
-            "backend.app.libs.tokenlists.retrieve_token_whitelist",
-            lambda: ["0x6d6f636b5f746f6b656e5f31", "0x6d6f636b5f746f6b656e5f32"],
+            "backend.app.libs.storage_helpers.tokenlists.retrieve_token_whitelist",
+            lambda _: ["0x6d6f636b5f746f6b656e5f31", "0x6d6f636b5f746f6b656e5f32"],
             raising=True,
         )
-        mocked_whitelist = await maybe_populate_whitelist()
+        mocked_whitelist = await maybe_populate_whitelist("mocked_provider")
         assert len(mocked_whitelist) == 2
         assert "0x6d6f636b5f746f6b656e5f31" in mocked_whitelist
         assert "0x6d6f636b5f746f6b656e5f32" in mocked_whitelist
 
     @mark.asyncio
     async def test_get_token_list_resp_err_404(self, monkeypatch: MonkeyPatch):
-        def raise_http_status_error(_):
-            raise HTTPStatusError(
-                "mocked http status error",
-                request=Request("get", "http://"),
-                response=Response(404),
-            )
-
         monkeypatch.setattr(AsyncClient, "get", self.mock_get_uniswap)
         monkeypatch.setattr(MockResponse, "status_code", 404)
-        monkeypatch.setattr(MockResponse, "raise_for_status", raise_http_status_error)
+        monkeypatch.setattr(
+            MockResponse, "raise_for_status", raise_http_status_error_404
+        )
 
         url = "https://tokens.coingecko.com/uniswap/all.json"
         with raises(HTTPStatusError) as error:
@@ -135,16 +132,11 @@ class TestTokenList:
 
     @mark.asyncio
     async def test_get_token_list_resp_err_5xx(self, monkeypatch: MonkeyPatch):
-        def raise_http_status_error(_):
-            raise HTTPStatusError(
-                "mocked http status error",
-                request=Request("get", "http://"),
-                response=Response(501),
-            )
-
         monkeypatch.setattr(AsyncClient, "get", self.mock_get_uniswap)
         monkeypatch.setattr(MockResponse, "status_code", 501)
-        monkeypatch.setattr(MockResponse, "raise_for_status", raise_http_status_error)
+        monkeypatch.setattr(
+            MockResponse, "raise_for_status", raise_http_status_error_501
+        )
 
         url = "https://tokens.coingecko.com/uniswap/all.json"
         with raises(HTTPStatusError) as error:
