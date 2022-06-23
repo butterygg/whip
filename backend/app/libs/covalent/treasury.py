@@ -5,8 +5,8 @@ from logging import getLogger
 from os import getenv
 from typing import Any, Coroutine, Dict, List, Optional
 
-from billiard.pool import MaybeEncodingError
 import dateutil
+from billiard.pool import MaybeEncodingError
 from celery.utils.log import get_task_logger
 from httpx import AsyncClient, Timeout
 from pytz import UTC

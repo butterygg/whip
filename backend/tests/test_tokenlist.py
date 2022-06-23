@@ -41,7 +41,7 @@ class TestTokenList:
 
         db_payload = {}
         monkeypatch.setattr(
-            "backend.app.libs.storage_helpers.db.sadd",
+            "backend.app.libs.tokenlists.db.sadd",
             lambda key, *payload: db_payload.update({key: set(payload)}),
             raising=True,
         )
@@ -106,7 +106,7 @@ class TestTokenList:
     ):
         monkeypatch.setattr(
             "backend.app.libs.tokenlists.retrieve_token_whitelist",
-            lambda: ["0x6d6f636b5f746f6b656e5f31", "0x6d6f636b5f746f6b656e5f32"],
+            lambda _: ["0x6d6f636b5f746f6b656e5f31", "0x6d6f636b5f746f6b656e5f32"],
             raising=True,
         )
         mocked_whitelist = await maybe_populate_whitelist()
