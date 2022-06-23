@@ -5,8 +5,9 @@ from os import getenv
 from typing import Any, Generator, Optional
 
 import dateutil
+from celery.utils.log import get_logger
 from dateutil import parser
-from httpx import AsyncClient, Timeout
+from httpx import AsyncClient, HTTPStatusError, ConnectError, Timeout
 from pytz import UTC
 
 from ... import db
@@ -22,7 +23,9 @@ CACHE_HASH = "covalent_transfers"
 CACHE_KEY_TEMPLATE = "{treasury_address}_{contract_address}_{chain_id}_{date}"
 
 
-async def _get_data(treasury_address: str, contract_address: str, chain_id: int) -> Any:
+async def _get_data(
+    treasury_address: str, contract_address: str, chain_id: int
+) -> dict[str, Any]:
     async with AsyncClient(timeout=Timeout(10.0, read=15.0, connect=30.0)) as client:
         resp = await client.get(
             f"https://api.covalenthq.com/v1/{chain_id}/address/{treasury_address}"
@@ -30,6 +33,29 @@ async def _get_data(treasury_address: str, contract_address: str, chain_id: int)
             + f"&contract-address={contract_address}&key=ckey_{getenv('COVALENT_KEY')}"
         )
     return resp.json()["data"]
+
+
+async def get_data(
+    treasury_address: str, contract_address: str, chain_id: int
+) -> Optional[dict[str, Any]]:
+    try:
+        return await _get_data(treasury_address, contract_address, chain_id)
+    except (
+        HTTPStatusError,
+        json.decoder.JSONDecodeError,
+        KeyError,
+    ) as error:
+        logger = get_logger(__name__)
+        if error.__class__ in [HTTPStatusError, ConnectError]:
+            logger.error(
+                "unable to receive a Covalent `transfers_v2` API response",
+                exc_info=error,
+            )
+            return {}
+        logger.error(
+            "error processing Covalent `transfers_v2` API response", exc_info=error
+        )
+        return {}
 
 
 def _gen_transfers(
@@ -98,10 +124,9 @@ async def get_token_transfers(
     if db.hexists(CACHE_HASH, cache_key):
         balance_hist_data = json.loads(db.hget(CACHE_HASH, cache_key))
     else:
-        balance_hist_data = await _get_data(
-            treasury_address, contract_address, chain_id
-        )
-        db.hset(CACHE_HASH, cache_key, json.dumps(balance_hist_data))
+        balance_hist_data = await get_data(treasury_address, contract_address, chain_id)
+        if balance_hist_data:
+            db.hset(CACHE_HASH, cache_key, json.dumps(balance_hist_data))
 
     if not balance_hist_data:
         return None

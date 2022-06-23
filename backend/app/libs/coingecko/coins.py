@@ -2,13 +2,13 @@ import datetime
 import json
 from json.decoder import JSONDecodeError
 from time import sleep
-from typing import Any, Optional
+from typing import Any, Coroutine, Optional, TypeVar, Union
 
 import dateutil.tz
 import dateutil.utils
-from billiard.pool import MaybeEncodingError
+from celery.utils.log import get_task_logger
 from dateutil.tz import UTC
-from httpx import AsyncClient, Timeout
+from httpx import AsyncClient, HTTPStatusError, Timeout
 
 from ... import db
 from ..types import Price
@@ -20,9 +20,22 @@ CACHE_HASH = "coingecko_hist_prices"
 CACHE_KEY_TEMPLATE = "{symbol}_{start}_{end}"
 
 
+RawPrices = TypeVar("RawPrices", list[list[Union[int, float]]], list[Any])
+
+
+async def retry(method: Coroutine, url: str) -> Optional[RawPrices]:
+    sleep(60)
+    resp = await method(url)
+    resp.raise_for_status()
+
+    prices = resp.json().get("prices")
+
+    return prices if prices else []
+
+
 async def _get_data(
     token_address: str, start_date: datetime.datetime, end_date: datetime.datetime
-) -> Optional[Any]:
+) -> Optional[RawPrices]:
     timeout = Timeout(10.0, read=15.0, connect=30.0)
     async with AsyncClient(
         headers={
@@ -31,30 +44,40 @@ async def _get_data(
             + "Chrome/100.0.4896.127 Safari/537.36 Edg/100.0.1185.50"
         }
     ) as client:
-        # replace ETH address to WETH
+        # replace ETH address with WETH address
         if token_address == "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee":
             token_address = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
-        try:
-            resp = await client.get(
-                COINGECKO_API_URL
-                + f"/coins/ethereum/contract/{token_address}/market_chart/range"
-                + f"?vs_currency=usd&from={start_date.timestamp()}&to={end_date.timestamp()}",
-                timeout=timeout,
+        req_url = COINGECKO_API_URL \
+            + f"/coins/ethereum/contract/{token_address}/market_chart/range" \
+            + f"?vs_currency=usd&from={start_date.timestamp()}&to={end_date.timestamp()}"
+        resp = await client.get(
+            req_url,
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        resp_data = resp.text
+        if "limit" in resp_data or "Limit" in resp_data:
+            prices = await retry(client.get, req_url)
+        else:
+            prices: Optional[RawPrices] = resp.json().get("prices")
+        return prices if prices else []
+
+
+async def get_data(
+    token_address: str, start_date: datetime.datetime, end_date: datetime.datetime
+) -> Optional[RawPrices]:
+    try:
+        return await _get_data(token_address, start_date, end_date)
+    except (HTTPStatusError, JSONDecodeError) as error:
+        logger = get_task_logger(__name__)
+        if error.__class__ is HTTPStatusError:
+            logger.error(
+                "unable to receive a Coingecko `coins` API response",
+                exc_info=error,
             )
-        except MaybeEncodingError:
-            sleep(5)
-            resp = await client.get(
-                COINGECKO_API_URL
-                + f"/coins/ethereum/contract/{token_address}/market_chart/range"
-                + f"?vs_currency=usd&from={start_date.timestamp()}&to={end_date.timestamp()}",
-                timeout=timeout,
-            )
-        sleep(5)
-        try:
-            return resp.json().get("prices")
-        except JSONDecodeError:
-            print(f"decode error for {resp.url}")
-            return None
+            return []
+        logger.error("error processing Coingecko `coins` API response", exc_info=error)
+        return []
 
 
 # tuple[str, str, list[tuple[int, float]]]
@@ -75,7 +98,7 @@ async def get_coin_hist_price(
         hist_price_data = json.loads(db.hget(CACHE_HASH, cache_key))
 
     else:
-        hist_price_data = await _get_data(token_address, start_date, end_date)
+        hist_price_data = await get_data(token_address, start_date, end_date)
         db.hset(CACHE_HASH, cache_key, json.dumps(hist_price_data))
         # Set an expiry flag on this hset name for a day.
         # It will only set an expire on this name if none exists for it.
