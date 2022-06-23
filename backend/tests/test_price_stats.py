@@ -2,6 +2,7 @@ import math
 
 import dateutil.parser
 import numpy as np
+import pytest
 
 from backend.app.libs import price_stats
 from backend.app.libs import series as serieslib
@@ -44,7 +45,9 @@ def test_two_prices():
 
     assert len(returns_df) == 2
     assert np.isnan(returns_df.returns.loc["2022-02-22"])
-    assert returns_df.returns.loc["2022-02-23"] == math.log(43.43 / 42.42)
+    assert returns_df.returns.loc["2022-02-23"] == pytest.approx(
+        math.log(43.43 / 42.42), 0.00001
+    )
     assert np.isnan(returns_df.std_dev).all()
 
 
