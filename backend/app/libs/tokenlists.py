@@ -53,7 +53,8 @@ async def store_and_get_whitelists() -> list[Union[str, None]]:
     try:
         latest_whitelist = await get_all_token_lists()
     except (HTTPStatusError, RequestError, JSONDecodeError, KeyError) as error:
-        logger = get_task_logger(__name__)
+        curr_task = db.get("curr_task")
+        logger = get_task_logger(curr_task if curr_task else __name__)
         if error.__class__ in [HTTPStatusError, RequestError]:
             logger.error("error receiving token list from API", exc_info=error)
             return []
@@ -64,8 +65,8 @@ async def store_and_get_whitelists() -> list[Union[str, None]]:
     return latest_whitelist
 
 
-async def _maybe_populate_whitelist(existing_whitelist: list[Union[str, None]]):
-    latest_whitelist = existing_whitelist
+async def _maybe_populate_whitelist(existing_whitelist: set[Union[str, None]]):
+    latest_whitelist = list(existing_whitelist)
     if not latest_whitelist:
         latest_whitelist.extend(await store_and_get_whitelists())
     return latest_whitelist

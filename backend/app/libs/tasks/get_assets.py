@@ -20,7 +20,7 @@ from .. import bitquery, coingecko, covalent, price_stats, spread
 from ..pd_inter_calc import make_daily_hist_balance
 from ..series import make_hist_price_series, make_hist_transfer_series
 from ..storage_helpers import (
-    cache_treasury_list,
+    get_and_store_treasury_list,
     retrieve_treasuries_metadata,
     store_asset_correlations,
     store_asset_hist_balance,
@@ -375,18 +375,24 @@ def redis_lock(lock_id: str, oid: Any):
     yield status
 
 
-def check_lock(lock_id: str, task_id: Any, oid, logger):
+def check_lock(lock_id: str, task_id: str, oid, logger):
     with redis_lock(lock_id, oid) as acquired:
         if not acquired:
             logger.info("task %s already running, revoking...", task_id)
             celery_app.control.revoke(task_id, terminate=True)
 
 
+def set_new_task(task_id: str):
+    db.set("curr_task", task_id)
+    if db.ttl("curr_task") <= 0:
+        db.expire("curr_task", LOCK_EXPIRE)
+
+
 @celery_app.task(bind=True)
 def reload_treasuries_stats(self):
     logger = get_task_logger(self.request.id)
     check_lock(f"{self.name}-lock", self.request.id, celery_app.oid, logger)
-    db.set("curr_task", self.request.id)
+    set_new_task(self.request.id)
 
     end_date: datetime = today(UTC)
     start_date: datetime = end_date - timedelta(days=365)
@@ -396,7 +402,7 @@ def reload_treasuries_stats(self):
 
     treasuries = retrieve_treasuries_metadata(db)
     if not treasuries:
-        cache_treasury_list(db)
+        get_and_store_treasury_list(db)
         treasuries = retrieve_treasuries_metadata(db)
 
     for treasury_metadata in treasuries:
@@ -460,7 +466,7 @@ def reload_treasuries_stats(self):
 
 @celery_app.task(bind=True)
 def reload_whitelist(self):
-    db.set("curr_task", self.request.id)
+    set_new_task(self.request.id)
     try:
         whitelist = run(store_and_get_whitelists())
         assert whitelist
@@ -471,5 +477,5 @@ def reload_whitelist(self):
 
 @celery_app.task(bind=True)
 def reload_treasuries_list(self):
-    db.set("curr_task", self.request.id)
-    cache_treasury_list(db)
+    set_new_task(self.request.id)
+    get_and_store_treasury_list(db)

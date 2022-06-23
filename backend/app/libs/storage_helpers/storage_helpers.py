@@ -8,7 +8,7 @@ CHAIN_ID = 1
 
 def store_treasury_metadata(
     provider: Union[redis.Redis, redis.client.Pipeline],
-    addresses: list[str],
+    addresses: list[Union[str, None]],
     chain_id: int = CHAIN_ID,
 ):
     payload = [
@@ -34,7 +34,7 @@ def store_token_whitelist(
 
 def retrieve_token_whitelist(
     provider: Union[redis.Redis, redis.client.Pipeline]
-) -> list[str]:
+) -> set[str]:
     return provider.smembers("whitelist")
 
 

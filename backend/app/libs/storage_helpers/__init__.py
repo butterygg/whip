@@ -6,4 +6,4 @@ from .storage_helpers import (
     store_asset_hist_performance,
     store_token_whitelist,
 )
-from .treasuries import cache_treasury_list
+from .treasuries import get_and_store_treasury_list
