@@ -11,6 +11,7 @@ from celery.utils.log import get_task_logger
 from dateutil.tz import UTC
 from dateutil.utils import today
 from dotenv import load_dotenv
+from httpx import ReadTimeout
 
 from ... import db
 from ...celery_main import app as celery_app
@@ -18,19 +19,21 @@ from .. import bitquery, coingecko, covalent, price_stats, spread
 from ..pd_inter_calc import make_daily_hist_balance
 from ..series import make_hist_price_series, make_hist_transfer_series
 from ..storage_helpers import (
+    get_and_store_treasury_list,
+    maybe_populate_whitelist,
     retrieve_treasuries_metadata,
+    store_and_get_whitelists,
     store_asset_correlations,
     store_asset_hist_balance,
     store_asset_hist_performance,
 )
-from ..tokenlists import maybe_populate_whitelist, store_and_get_whitelists
 from ..types import ERC20, Treasury
 
 load_dotenv()
 
 
 async def make_treasury(treasury_address: str, chain_id: int) -> Treasury:
-    token_whitelist = await maybe_populate_whitelist()
+    token_whitelist = await maybe_populate_whitelist(db)
     return await covalent.get_treasury(
         await covalent.get_treasury_portfolio(treasury_address, chain_id),
         token_whitelist,
@@ -337,13 +340,19 @@ async def build_spread_treasury_with_assets(
 @celery_app.on_after_finalize.connect
 def setup_periodic_tasks(sender, **_):
     sender.add_periodic_task(
-        crontab(hour=0, minute=30, nowfun=datetime.now),
-        reload_treasuries_data.s(),
-        name="reload treasuries data",
+        crontab(hour=0, minute=30, nowfun=datetime.utcnow),
+        reload_treasuries_stats.s(),
+        name="reload treasuries stats",
     )
 
     sender.add_periodic_task(
-        crontab(hour=0, minute=0, day_of_week=[1], nowfun=datetime.now),
+        crontab(hour=1, minute=0, day_of_week=[0, 3], nowfun=datetime.utcnow),
+        reload_treasuries_list.s(),
+        name="reload treasury list",
+    )
+
+    sender.add_periodic_task(
+        crontab(hour=0, minute=0, day_of_week=[1], nowfun=datetime.utcnow),
         reload_whitelist.s(),
         name="reload token whitelist",
     )
@@ -354,24 +363,46 @@ def setup_init_tasks(**_):
     reload_whitelist.apply_async()
 
 
-@celery_app.task
-def reload_treasuries_data():
+@celery_app.task()
+def reload_treasuries_stats():
+    logger = get_task_logger(__name__)
+
     end_date: datetime = today(UTC)
     start_date: datetime = end_date - timedelta(days=365)
 
     start = start_date.isoformat()[:10]
     end = end_date.isoformat()[:10]
 
-    for treasury_metadata in retrieve_treasuries_metadata():
+    treasuries = retrieve_treasuries_metadata(db)
+    if not treasuries:
+        get_and_store_treasury_list(db)
+        treasuries = retrieve_treasuries_metadata(db)
+
+    for treasury_metadata in treasuries:
         with db.pipeline() as pipe:
-            (
-                treasury,
-                augmented_token_hist_prices,
-                asset_hist_balances,
-                _,
-            ) = async_to_sync(build_treasury_with_assets)(
-                *treasury_metadata, start, end
-            )
+            try:
+                (
+                    treasury,
+                    augmented_token_hist_prices,
+                    asset_hist_balances,
+                    _,
+                ) = async_to_sync(build_treasury_with_assets)(
+                    *treasury_metadata, start, end
+                )
+            except TypeError:
+                # This error is likely caused by
+                # backend.app.libs.pd_inter_calc.make_daily_hist_balance
+                logger.error(  # [FIXME]
+                    "error reducing augemented treasury balance for %s",
+                    treasury_metadata[0],
+                )
+                continue
+            except ReadTimeout:
+                logger.error(
+                    "error receiving a covalent portfolio_v2 response for %s, continuing",
+                    treasury_metadata[0],
+                )
+                continue
 
             for symbol, asset_hist_performance in augmented_token_hist_prices.items():
                 store_asset_hist_performance(
@@ -379,11 +410,9 @@ def reload_treasuries_data():
                     dumps(
                         {
                             ts.isoformat(): value
-                            for ts, value in asset_hist_performance.set_index(
-                                "timestamp"
-                            )
-                            .to_dict(orient="index")
-                            .items()
+                            for ts, value in asset_hist_performance.to_dict(
+                                orient="index"
+                            ).items()
                         }
                     ),
                     pipe,
@@ -408,11 +437,16 @@ def reload_treasuries_data():
             pipe.execute()
 
 
-@celery_app.task(bind=True)
-def reload_whitelist(self):
+@celery_app.task()
+def reload_whitelist():
     try:
-        whitelist = run(store_and_get_whitelists())
+        whitelist = run(store_and_get_whitelists(db))
         assert whitelist
     except AssertionError:
-        logger = get_task_logger(self.request.id)
+        logger = get_task_logger(__name__)
         logger.error("reload whitelist task failed: empty whitelist")
+
+
+@celery_app.task()
+def reload_treasuries_list():
+    get_and_store_treasury_list(db)
