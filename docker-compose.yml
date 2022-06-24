@@ -1,6 +1,6 @@
 services:
   redis:
-    profiles: ["backend"]
+    profiles: ["backend", "services"]
     image: redis:6.2.3
     networks:
       - whip_nw
@@ -14,19 +14,20 @@ services:
       args:
         TAG: python3.9
     ports:
-      - "80:80"
+      - 80:80
     networks:
       - whip_nw
     depends_on:
       - redis
       - sched
     env_file:
-      - backend/app.env
+      - backend/.env
     volumes:
       - ./backend/app/:/app/app/
-    command: /start-reload.sh
+      - ./backend/main.py:/app/main.py
+    command: "uvicorn --reload --host 0.0.0.0 --port 80 --log-level info app.endpoints:app"
   sched:
-    profiles: ["backend"]
+    profiles: ["backend", "services"]
     image: butter_whip/backend:dev
     build:
       context: ./backend
@@ -37,9 +38,10 @@ services:
     depends_on:
       - redis
     env_file:
-      - backend/app.env
+      - backend/.env
     volumes:
       - ./backend/app/:/app/app/
+      - ./backend/main.py:/app/main.py
     command: "celery -A app.celery_main worker --concurrency=2 -B -l INFO --pidfile="
   frontend:
     profiles: ["frontend"]
