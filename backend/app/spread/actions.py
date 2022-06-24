@@ -1,5 +1,3 @@
-from typing import TypeVar
-
 import pandas as pd
 
 from ..treasury import (
@@ -17,36 +15,37 @@ from ..treasury import (
 )
 from .helpers import make_zeroes
 
-Balanceish = TypeVar("Balanceish", float, pd.Series)
-
-
-def _resize_balances(
-    balanceish_dict: dict[str, Balanceish],
-    spread_percentage: int,
-) -> dict[str, Balanceish]:
-    downsizing_factor = (100 - spread_percentage) / 100.0
-
-    return {k: b * downsizing_factor for k, b in balanceish_dict.items()}
-
 
 def update_balances_with_spread(
     balances: Balances,
+    token_to_divest_from: str,
     spread_token_symbol: str,
     spread_percentage: int,
     start: str,
     end: str,
 ) -> Balances:
-    def get_default_balance(histbal: pd.DataFrame) -> float:
+    if token_to_divest_from == spread_token_symbol:
+        return balances
+
+    def get_default_start_balance(histbal: pd.Series) -> float:
         try:
             return histbal.loc[start]
         except KeyError:
             return 0
 
-    initial_total_balance = sum(map(get_default_balance, balances.balances.values()))
-    resized_balances_dict = _resize_balances(balances.balances, spread_percentage)
+    initial_divest_balance: float = get_default_start_balance(
+        balances.balances[token_to_divest_from]
+    )
+    resized_balances_dict = balances.balances
+    resized_balances_dict[token_to_divest_from] *= (100 - spread_percentage) / 100.0
+    resized_balances_dict[
+        token_to_divest_from
+    ].name = f"{token_to_divest_from} divested backtest balance"
+
     zeroes_series = make_zeroes(start, end)
-    spread_additional_token_balance = zeroes_series + (
-        initial_total_balance * spread_percentage / 100.0
+    spread_additional_token_balance: pd.Series = zeroes_series + (
+        initial_divest_balance
+        - get_default_start_balance(balances.balances[token_to_divest_from])
     )
     spread_additional_token_balance.name = (
         f"{spread_token_symbol} spread backtest balance"
@@ -88,12 +87,15 @@ async def build_spread_treasury_with_assets(
     chain_id: int,
     start: str,
     end: str,
+    token_to_divest_from: str,
     spread_token_name: str,
     spread_token_symbol: str,
     spread_token_address: str,
     spread_percentage: int,
 ) -> tuple[Treasury, Prices, Balances, TotalBalance]:
     treasury = await make_treasury_from_address(treasury_address, chain_id)
+
+    assert token_to_divest_from in (asset.token_symbol for asset in treasury.assets)
 
     token_symbols_and_addresses: set[tuple[str, str]] = {
         (asset.token_symbol, asset.token_address) for asset in treasury.assets
@@ -115,6 +117,7 @@ async def build_spread_treasury_with_assets(
 
     balances = update_balances_with_spread(
         balances,
+        token_to_divest_from,
         spread_token_symbol,
         spread_percentage,
         start,

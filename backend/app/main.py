@@ -114,9 +114,10 @@ async def get_portfolio(address: str, start=str):
     )
 
 
-@app.get("/backtest/spread/{address}/{start}/{asset_symbol}/{percentage}")
-async def backtest_spread(address: str, start: str, asset_symbol: str, percentage: int):
-    print(asset_symbol)
+@app.get("/backtest/spread/{address}/{start}/{token_to_divest_from}/{percentage}")
+async def backtest_spread(
+    address: str, start: str, token_to_divest_from: str, percentage: int
+):
     assert 0 <= percentage <= 100
 
     end_date = dateutil.utils.today(UTC) - datetime.timedelta(days=1)
@@ -129,6 +130,7 @@ async def backtest_spread(address: str, start: str, asset_symbol: str, percentag
                 1,
                 start,
                 end,
+                token_to_divest_from,
                 spread_token_name="USD Coin",
                 spread_token_symbol="USDC",
                 spread_token_address="0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
