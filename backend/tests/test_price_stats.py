@@ -67,6 +67,7 @@ def test_prev_zero():
     assert np.isnan(returns_df.std_dev).all()
 
 
+@pytest.mark.filterwarnings("ignore")
 def test_current_zero():
     hist_price = serieslib.make_hist_price_series(
         "TEST",
@@ -99,6 +100,7 @@ def test_two_zeroes():
     assert np.isnan(returns_df.std_dev).all()
 
 
+@pytest.mark.filterwarnings("ignore")
 def test_8_prices():
     hist_price = serieslib.make_hist_price_series(
         "TEST",
