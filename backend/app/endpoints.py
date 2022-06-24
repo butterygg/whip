@@ -3,7 +3,7 @@ from dataclasses import asdict, dataclass
 from typing import Iterable, Literal, TypeVar, Union
 
 import dateutil
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 from pytz import UTC
 
 from .spread import build_spread_treasury_with_assets
@@ -14,18 +14,6 @@ from .treasury import (
     Treasury,
     build_treasury_with_assets,
 )
-
-app = FastAPI()
-
-T = TypeVar("T")
-
-
-def snake_to_camel_dict_factory(items: Iterable[tuple[str, T]]) -> dict[str, T]:
-    def camel(snake_str):
-        components = snake_str.split("_")
-        return components[0] + "".join(x.title() for x in components[1:])
-
-    return {camel(k): v for k, v in items}
 
 
 @dataclass
@@ -97,7 +85,23 @@ class Portfolio:
         return cls(assets=assets, kpis=kpis, data=data)
 
 
-@app.get("/portfolio/{address}/{start}")
+# [XXX] Try moving Portfolio to its own domain module
+
+
+router = APIRouter(prefix="/api")
+
+T = TypeVar("T")
+
+
+def snake_to_camel_dict_factory(items: Iterable[tuple[str, T]]) -> dict[str, T]:
+    def camel(snake_str):
+        components = snake_str.split("_")
+        return components[0] + "".join(x.title() for x in components[1:])
+
+    return {camel(k): v for k, v in items}
+
+
+@router.get("/portfolio/{address}/{start}")
 async def get_portfolio(address: str, start=str):
     end_date = dateutil.utils.today(UTC) - datetime.timedelta(days=1)
     end = end_date.strftime("%Y-%m-%d")
@@ -114,7 +118,7 @@ async def get_portfolio(address: str, start=str):
     )
 
 
-@app.get("/backtest/spread/{address}/{start}/{token_to_divest_from}/{percentage}")
+@router.get("/backtest/spread/{address}/{start}/{token_to_divest_from}/{percentage}")
 async def backtest_spread(
     address: str, start: str, token_to_divest_from: str, percentage: int
 ):
@@ -145,3 +149,7 @@ async def backtest_spread(
         portfolio,
         dict_factory=snake_to_camel_dict_factory,
     )
+
+
+app = FastAPI()
+app.include_router(router)
