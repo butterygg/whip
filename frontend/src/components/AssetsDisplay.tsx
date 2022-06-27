@@ -3,15 +3,11 @@ import { AssetsBreakdown } from "../types";
 export default function AssetsDisplay({
   newAssets,
   baseAssets,
-  assetsAreSelectable = false,
   selectedAsset,
-  setSelectedAsset,
 }: {
   newAssets: AssetsBreakdown | undefined;
   baseAssets: AssetsBreakdown;
-  assetsAreSelectable?: boolean;
   selectedAsset: string | undefined;
-  setSelectedAsset: (arg0: string | undefined) => void;
 }) {
   const assets = newAssets || baseAssets;
 
@@ -34,23 +30,16 @@ export default function AssetsDisplay({
             <tr
               key={assetName}
               className={
-                (assetsAreSelectable ? "hover:bg-white cursor-pointer " : "") +
                 (selectedAsset === assetName ? "font-extrabold " : "") +
                 "border-b"
-              }
-              onClick={() =>
-                assetsAreSelectable &&
-                setSelectedAsset(
-                  assetName === selectedAsset ? undefined : assetName
-                )
               }
             >
               <td className="p-2">
                 <span
                   className={
                     (assetName === selectedAsset
-                      ? "text-[#E26139] "
-                      : "text-[#666] ") + "text-l mr-2"
+                      ? "text-strawberry "
+                      : "text-[#000] text-opacity-50 ") + " text-l mr-2"
                   }
                 >
                   ●
