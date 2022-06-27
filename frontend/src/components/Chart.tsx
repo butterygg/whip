@@ -79,15 +79,15 @@ export default function Chart({
           },
         }}
       />
-      <div className="m-4 space-x-0.5 flex items-center justify-center text-gray-700 text-s">
+      <div className="m-4 flex space-x-0.5 items-center justify-center text-gray-700 text-s drop-shadow-lg">
         {dateOptions.map(
           ({ optionStartDate, callback, selectedText, unselectedText }) => (
             <div
               key={optionStartDate.toString()}
-              className={`hover:cursor-pointer p-2 ${
+              className={`hover:cursor-pointer p-2  ${
                 startDate.getTime() === optionStartDate.getTime()
-                  ? "bg-[#E26139] font-semibold text-white"
-                  : "bg-white"
+                  ? "bg-strawberry font-bold text-[#fff]"
+                  : "bg-[#fff] font-semibold"
               }`}
               onClick={callback}
             >

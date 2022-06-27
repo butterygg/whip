@@ -16,7 +16,10 @@ export default function Product({
   provider,
   description,
   tokens,
+  assets,
   selectedAsset,
+  setSelectedAsset,
+  swappedAmount,
   opened,
   previewIsOn,
   toggle,
@@ -25,7 +28,10 @@ export default function Product({
   previewNewChartData,
   resetPreview,
 }: ProductDescription & {
-  selectedAsset?: string | undefined;
+  assets: string[];
+  selectedAsset: string | undefined;
+  setSelectedAsset: (arg0: string | undefined) => void;
+  swappedAmount: number | undefined;
   opened: boolean;
   previewIsOn: boolean;
   toggle: () => void;
@@ -59,8 +65,10 @@ export default function Product({
     <div>
       <div
         className={
-          (opened ? "" : "hover:cursor-pointer hover:bg-[#ccc] ") +
-          "p-4 bg-[#ddd] flex items-center justify-between"
+          (opened
+            ? "bg-biscuit bg-opacity-90 "
+            : "bg-biscuit hover:cursor-pointer hover:bg-[#ccc] rounded-lg ") +
+          "p-4 text-[#fff] flex items-center justify-between"
         }
         onClick={toggle}
       >
@@ -75,7 +83,7 @@ export default function Product({
               {tokens.map((token) => (
                 <span
                   key={token}
-                  className="bg-[#bbb] pl-1 pr-1 p-0.5 rounded-2xl text-xs"
+                  className="border-[1px] border-[#fff] pl-1 pr-1 p-0.5 rounded-2xl text-xs"
                 >
                   {token}
                 </span>
@@ -86,7 +94,7 @@ export default function Product({
         <span
           className={
             (opened ? "" : "invisible ") +
-            "hover:cursor-pointer hover:bg-[#ccc] text-right text-2xl mb-12 px-2 rounded-2xl"
+            "hover:cursor-pointer hover:text-strawberry text-right text-2xl mb-12 px-2 rounded-2xl"
           }
           onClick={resetPreview}
         >
@@ -94,14 +102,30 @@ export default function Product({
         </span>
       </div>
       {opened && (
-        <div className="p-4 space-y-2 text-xl font-semibold">
+        <div className="p-4 space-y-2 text-xl font-semibold bg-biscuit bg-opacity-20">
           <div className="p-4 space-y-2">
-            <h3 className="font-bold">You swap</h3>
-            <div className="flex items-center justify-between">
-              <span className="uppercase">Asset{"\u00A0"}%</span>
+            <h3 className="font-light">You swap</h3>
+            <div className="flex items-center justify-between text-l">
               <span>
+                <select
+                  onChange={(event) => setSelectedAsset(event.target.value)}
+                  className="bg-biscuit bg-opacity-10 border-strawberry border-2 font-bold"
+                >
+                  <option value="">select an asset</option>
+                  {assets.map((asset) => (
+                    <option
+                      key={asset}
+                      value={asset}
+                      selected={asset === selectedAsset}
+                    >
+                      {asset}
+                    </option>
+                  ))}
+                </select>
+              </span>
+              <span className="relative">
                 <input
-                  className="w-[3em] p-2 text-right"
+                  className="bg-biscuit bg-opacity-10 border-strawberry border-2 w-[5em] p-2 pr-5 text-right font-bold"
                   placeholder="20"
                   type="number"
                   min="0"
@@ -109,32 +133,32 @@ export default function Product({
                   onChange={(e) => setPercentage(parseInt(e.target.value))}
                   value={percentage}
                 />
+                <span className="absolute right-2 h-[100%] top-0 flex items-center">
+                  <p className="text-sm">%</p>
+                </span>
               </span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="uppercase">Value{"\u00A0"}$</span>
-              <span>
-                <input
-                  className="p-2 text-right"
-                  disabled={true}
-                  value="12,000,000"
-                />
+            {/* <div className="flex items-center justify-between">
+              <span className="uppercase">Value</span>
+              <span className="flex items-center justify-between space-x-2">
+                <span>$12,000,000</span>
               </span>
-            </div>
+            </div> */}
           </div>
-          <div className="p-4 space-y-2 bg-[#ddd]">
-            <h3 className="font-bold">You receive</h3>
-            <div className="flex items-center justify-between">
-              <span className="uppercase">UDSC</span>
-              <span>
-                <input
-                  className="p-2 text-right bg-[#ddd]"
-                  disabled={true}
-                  value={"20,000"}
-                />
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
+          {swappedAmount !== undefined && (
+            <div className="bg-custard rounded-lg p-4 space-y-2">
+              <h3 className="font-light">You receive</h3>
+              <div className="flex items-center justify-between">
+                <span className="uppercase">UDSC</span>
+                <span>
+                  <input
+                    className="bg-custard p-2 text-right"
+                    disabled={true}
+                    value={"20,000"}
+                  />
+                </span>
+              </div>
+              {/* <div className="flex items-center justify-between">
               <span className="uppercase">Value{"\u00A0"}$</span>
               <span>
                 <input
@@ -143,39 +167,49 @@ export default function Product({
                   value={"$12,000,000"}
                 />
               </span>
+            </div> */}
             </div>
-          </div>
-          <div className="pt-8 flex items-center justify-center">
-            {previewIsOn ? (
-              <button
-                className="bg-[#666] hover:bg-[#444] py-4 px-8 text-white font-bold"
-                onClick={() => resetPreview()}
-              >
-                Reset preview
-              </button>
-            ) : selectedAsset ? (
-              <button
-                className="bg-[#D5AF08] hover:bg-[#444] py-4 px-8 text-white font-bold"
-                onClick={() => selectedAsset && launchPreview()}
-              >
-                Run preview
-              </button>
-            ) : (
-              <button
-                className="bg-[#eaeaea] py-4 px-8 text-[#666] font-bold"
-                disabled={true}
-              >
-                Run preview
-              </button>
-            )}
-          </div>
-          <div
-            className={
-              "p-1 space-y-2 text-sm text-center" +
-              (selectedAsset ? " invisible" : "")
-            }
-          >
-            <p>To run the preview, first select an asset to be spread.</p>
+          )}
+          <div className="p-4 space-y-2">
+            <div className="pt-8 flex items-center justify-center space-x-6">
+              {previewIsOn && (
+                <button
+                  className="bg-biscuit hover:bg-opacity-50 py-4 px-8 text-[#fff] font-bold"
+                  onClick={() => {
+                    resetPreview();
+                    setSelectedAsset(undefined);
+                  }}
+                >
+                  Clear
+                </button>
+              )}
+              {selectedAsset ? (
+                <button
+                  className="bg-strawberry hover:bg-opacity-50 py-4 px-8 text-[#fff] font-bold"
+                  onClick={() => {
+                    resetPreview();
+                    selectedAsset && launchPreview();
+                  }}
+                >
+                  {previewIsOn ? "Update" : "Preview"}
+                </button>
+              ) : (
+                <button
+                  className="bg-strawberry bg-opacity-10 py-4 px-8 text-[#666] font-bold"
+                  disabled={true}
+                >
+                  {previewIsOn ? "Update" : "Preview"}
+                </button>
+              )}
+            </div>
+            <div
+              className={
+                "pt-1 space-y-2 text-sm text-center" +
+                (selectedAsset ? " invisible" : "")
+              }
+            >
+              <em>To run a preview, first select an asset to be spread.</em>
+            </div>
           </div>
         </div>
       )}

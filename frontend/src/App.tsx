@@ -117,16 +117,6 @@ function App() {
     })();
   }, [address, startDate]);
 
-  const resetAssets = () => {
-    setNewKpis(undefined);
-    setNewAssets(undefined);
-    setChartData({
-      labels: chartData.labels,
-      datasets: chartData.datasets.length === 0 ? [] : [chartData.datasets[0]],
-    });
-    setSelectedAsset(undefined);
-  };
-
   const previewNewChartData = (newData: Record<string, number>) => {
     setChartData({
       labels: chartData.labels,
@@ -171,7 +161,7 @@ function App() {
       <div>
         <header className="p-2 flex justify-between items-center">
           <div className="m-3 w-[28em] p-2"></div>
-          <p className="text-6xl font-bold text-[#E1B76D]">WHIP</p>
+          <p className="text-6xl font-bold text-biscuit">WHIP</p>
           <input
             className="m-3 w-[28em] p-2"
             placeholder={address || "Address"}
@@ -190,29 +180,32 @@ function App() {
               <AssetsDisplay
                 newAssets={newAssets}
                 baseAssets={baseAssets}
-                assetsAreSelectable={
-                  openedProduct === 0 && newAssets === undefined
-                }
                 selectedAsset={selectedAsset}
-                setSelectedAsset={setSelectedAsset}
               />
             </div>
           </div>
           <div
             className={
-              (openedProduct === undefined ? "p-6 " : "") +
-              "bg-[#eee] w-1/3 m-10 space-y-6"
+              (openedProduct === undefined
+                ? "p-6 bg-biscuit bg-opacity-20 "
+                : "border-strawberry border-4 ") +
+              " w-1/3 m-10 space-y-6 rounded-lg"
             }
           >
             {openedProduct === undefined && (
-              <h2 className="text-3xl mb-6">Products</h2>
+              <h2 className="text-3xl font-extrabold mb-6 text-strawberry">
+                Strategies
+              </h2>
             )}
             {PRODUCTS.map(
               (props, index) =>
                 (openedProduct === undefined || index === openedProduct) && (
                   <Product
                     key={index}
+                    assets={Object.keys(baseAssets)}
                     selectedAsset={selectedAsset}
+                    setSelectedAsset={setSelectedAsset}
+                    swappedAmount={undefined}
                     opened={index === openedProduct}
                     previewIsOn={newAssets !== undefined}
                     toggle={() => {
@@ -224,7 +217,17 @@ function App() {
                     previewNewKpis={setNewKpis}
                     previewNewAssets={setNewAssets}
                     previewNewChartData={previewNewChartData}
-                    resetPreview={() => resetAssets()}
+                    resetPreview={() => {
+                      setNewKpis(undefined);
+                      setNewAssets(undefined);
+                      setChartData({
+                        labels: chartData.labels,
+                        datasets:
+                          chartData.datasets.length === 0
+                            ? []
+                            : [chartData.datasets[0]],
+                      });
+                    }}
                     {...props}
                   />
                 )
