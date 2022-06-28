@@ -1,3 +1,5 @@
+# pylint: disable=pointless-statement
+
 import dateutil.parser
 import pandas as pd
 import pytest
@@ -17,6 +19,7 @@ def _make_balance_series(balances: list[float], strdates: list[str]) -> pd.Serie
             ],
             name="timestamp",
         ),
+        dtype="float64",
     )
 
 
@@ -29,10 +32,12 @@ def test_token_to_0_percent_usdc():
     )
     assert "GVT" in spread_balances.balances
     assert "USDC" in spread_balances.balances
+    # Check invariant: total balance on start date.
     assert (spread_balances.balances["GVT"] + spread_balances.balances["USDC"]).loc[
         "2022-01-01"
     ] == 123
     assert spread_balances.balances["USDC"].tolist() == [0, 0]
+    assert spread_balances.balances["GVT"].tolist() == [123, 246]
 
 
 def test_token_to_20_percent_usdc():
@@ -44,18 +49,32 @@ def test_token_to_20_percent_usdc():
     )
     assert "GVT" in spread_balances.balances
     assert "USDC" in spread_balances.balances
+    # Check backtest swap percentage on start date.
+    assert spread_balances.balances["USDC"].loc["2022-01-01"] == pytest.approx(
+        123 * 20 / 100
+    )
+    # Check invariant: total balance on start date.
     assert (
         spread_balances.balances["GVT"].loc["2022-01-01"]
         + spread_balances.balances["USDC"].loc["2022-01-01"]
         == 123
     )
-    assert spread_balances.balances["USDC"].loc["2022-01-01"] == pytest.approx(
-        123 * 20 / 100.0
+    # Check invariant: rate of return for each asset.
+    assert spread_balances.balances["USDC"].tolist() == pytest.approx(
+        [123 * 20 / 100.0, 123 * 20 / 100.0]
     )
+    assert (
+        spread_balances.balances["GVT"]
+        / spread_balances.balances["GVT"].shift(periods=1)
+    ).tolist()[1:] == (
+        balances.balances["GVT"] / balances.balances["GVT"].shift(periods=1)
+    ).tolist()[
+        1:
+    ]
 
 
 def test_token_to_usdc_earlier_start():
-    "Test correct behavior when start date is before any first balance value"
+    "When start date is before any first balance value, no backtest swap happens"
     balances = Balances(
         balances={"GVT": _make_balance_series([123, 246], ["2022-01-02", "2022-01-03"])}
     )
@@ -65,6 +84,10 @@ def test_token_to_usdc_earlier_start():
     assert "GVT" in spread_balances.balances
     assert "USDC" in spread_balances.balances
     assert spread_balances.balances["USDC"].loc["2022-01-01"] == 0
+    assert spread_balances.balances["USDC"].tolist() == [0, 0, 0]
+    pd.testing.assert_series_equal(
+        spread_balances.balances["GVT"], balances.balances["GVT"]
+    )
 
 
 def test_token_to_existing_usdc():
@@ -79,14 +102,33 @@ def test_token_to_existing_usdc():
     )
     assert "GVT" in spread_balances.balances
     assert "USDC" in spread_balances.balances
+    # Check backtest swap percentage on start date.
+    assert spread_balances.balances["USDC"].loc["2022-01-01"] == pytest.approx(
+        123 * 20 / 100 + 10
+    )
+    # Check invariant: total balance on start date.
     assert (
         spread_balances.balances["GVT"].loc["2022-01-01"]
         + spread_balances.balances["USDC"].loc["2022-01-01"]
         == 133
     )
-    assert spread_balances.balances["USDC"].loc["2022-01-01"] == pytest.approx(
-        10 + 123 * 20 / 100.0
-    )
+    # Check invariant: rate of return for each asset.
+    assert (
+        spread_balances.balances["USDC"]
+        / spread_balances.balances["USDC"].shift(periods=1)
+    ).tolist()[1:] == (
+        balances.balances["USDC"] / balances.balances["USDC"].shift(periods=1)
+    ).tolist()[
+        1:
+    ]
+    assert (
+        spread_balances.balances["GVT"]
+        / spread_balances.balances["GVT"].shift(periods=1)
+    ).tolist()[1:] == (
+        balances.balances["GVT"] / balances.balances["GVT"].shift(periods=1)
+    ).tolist()[
+        1:
+    ]
 
 
 def test_token_to_exising_usdc_different_dates():
@@ -116,11 +158,32 @@ def test_token_to_exising_usdc_different_dates():
     )
     assert "GVT" in spread_balances.balances
     assert "USDC" in spread_balances.balances
+    # Check backtest swap percentage on start date.
+    assert spread_balances.balances["USDC"].loc["2022-01-01"] == pytest.approx(
+        123 * 20 / 100.0
+    )
+    # Check invariant: total balance on start date.
     assert (
         spread_balances.balances["GVT"].loc["2022-01-01"]
         + spread_balances.balances["USDC"].loc["2022-01-01"]
         == 123
     )
-    assert spread_balances.balances["USDC"].loc["2022-01-01"] == pytest.approx(
-        123 * 20 / 100.0
-    )
+    # Check invariant: rate of return for each asset.
+    assert (
+        spread_balances.balances["USDC"].loc["2022-01-03":"2022-01-04"]
+        / spread_balances.balances["USDC"]
+        .loc["2022-01-03":"2022-01-04"]
+        .shift(periods=1)
+    ).tolist()[1:] == (
+        balances.balances["USDC"] / balances.balances["USDC"].shift(periods=1)
+    ).tolist()[
+        1:
+    ]
+    assert (
+        spread_balances.balances["GVT"]
+        / spread_balances.balances["GVT"].shift(periods=1)
+    ).tolist()[1:] == (
+        balances.balances["GVT"] / balances.balances["GVT"].shift(periods=1)
+    ).tolist()[
+        1:
+    ]
