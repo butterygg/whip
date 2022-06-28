@@ -24,38 +24,32 @@ def update_balances_with_spread(
     start: str,
     end: str,
 ) -> Balances:
+    resized_balances = balances.copy()
+
     if token_to_divest_from == spread_token_symbol:
-        return balances
-
-    def get_default_start_balance(histbal: pd.Series) -> float:
-        try:
-            return histbal.loc[start]
-        except KeyError:
-            return 0
-
-    initial_divest_balance: float = get_default_start_balance(
-        balances.balances[token_to_divest_from]
-    )
-    resized_balances_dict = balances.balances
-    resized_balances_dict[token_to_divest_from] *= (100 - spread_percentage) / 100.0
-    resized_balances_dict[
-        token_to_divest_from
-    ].name = f"{token_to_divest_from} divested backtest balance"
+        return resized_balances
 
     zeroes_series = make_zeroes(start, end)
-    spread_additional_token_balance: pd.Series = zeroes_series + (
-        initial_divest_balance
-        - get_default_start_balance(balances.balances[token_to_divest_from])
-    )
-    spread_additional_token_balance.name = (
-        f"{spread_token_symbol} spread backtest balance"
-    )
-    if spread_token_symbol in resized_balances_dict:
-        spread_additional_token_balance = spread_additional_token_balance.add(
-            resized_balances_dict[spread_token_symbol], fill_value=0
+
+    try:
+        start_divest_balance = balances.balances[token_to_divest_from].loc[start]
+    except KeyError:
+        spread_additional_token_balance: pd.Series = zeroes_series
+    else:
+        spread_additional_token_balance: pd.Series = (
+            zeroes_series + start_divest_balance * spread_percentage / 100.0
         )
-    resized_balances_dict[spread_token_symbol] = spread_additional_token_balance
-    return Balances(balances=resized_balances_dict)
+        resized_balances.balances[token_to_divest_from] *= (
+            100 - spread_percentage
+        ) / 100.0
+
+    if spread_token_symbol in resized_balances.balances:
+        spread_additional_token_balance = spread_additional_token_balance.add(
+            resized_balances.balances[spread_token_symbol], fill_value=0
+        )
+    resized_balances.balances[spread_token_symbol] = spread_additional_token_balance
+
+    return resized_balances
 
 
 def update_treasury_assets_with_spread_balances(

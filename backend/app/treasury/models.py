@@ -56,6 +56,14 @@ class Balances:
     def get_existing_token_symbols(self) -> set[str]:
         return {*self.balances.keys()}
 
+    def copy(self):
+        return Balances(
+            balances={
+                token_symbol: balance_series.copy(deep=True)
+                for token_symbol, balance_series in self.balances.items()
+            }
+        )
+
 
 @dataclass
 class TotalBalance:
