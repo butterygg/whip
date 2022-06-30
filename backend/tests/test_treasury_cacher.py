@@ -51,10 +51,11 @@ def test_get_treasury_list_success(monkeypatch: MonkeyPatch):
     monkeypatch.setattr(Client, "get", lambda *_: MockResponse())
 
     treasury_list = _get_treasury_list()
-    assert treasury_list
-    assert "0x6d6f636b65645f74726561737572795f31" in treasury_list
-    assert "0x6d6f636b65645f74726561737572795f32" in treasury_list
-    assert "0x6d6f636b65645f74726561737572795f33" in treasury_list
+    assert treasury_list == [
+        "0x6d6f636b65645f74726561737572795f31",
+        "0x6d6f636b65645f74726561737572795f32",
+        "0x6d6f636b65645f74726561737572795f33",
+    ]
 
 
 def test_get_treasury_list_4xx_err(monkeypatch: MonkeyPatch):
