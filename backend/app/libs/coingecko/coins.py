@@ -33,18 +33,18 @@ async def _get_data(
         # replace ETH address to WETH
         if token_address == "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee":
             token_address = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
-            resp = await client.get(
-                COINGECKO_API_URL
-                + f"/coins/ethereum/contract/{token_address}/market_chart/range"
-                + f"?vs_currency=usd&from={start_date.timestamp()}&to={end_date.timestamp()}",
-                timeout=timeout,
-            )
-            sleep(5)
-            try:
-                return resp.json().get("prices")
-            except JSONDecodeError:
-                print(f"decode error for {resp.url}")
-                return None
+        resp = await client.get(
+            COINGECKO_API_URL
+            + f"/coins/ethereum/contract/{token_address}/market_chart/range"
+            + f"?vs_currency=usd&from={start_date.timestamp()}&to={end_date.timestamp()}",
+            timeout=timeout,
+        )
+        sleep(5)
+        try:
+            return resp.json().get("prices")
+        except JSONDecodeError:
+            print(f"decode error for {resp.url}")
+            return None
 
 
 # tuple[str, str, list[tuple[int, float]]]
