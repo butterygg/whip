@@ -16,21 +16,25 @@ export default function Product({
   provider,
   description,
   tokens,
+  selectedAsset,
   opened,
+  previewIsOn,
   toggle,
   previewNewKpis,
   previewNewAssets,
   previewNewChartData,
   resetPreview,
 }: ProductDescription & {
+  selectedAsset?: string | undefined;
   opened: boolean;
+  previewIsOn: boolean;
   toggle: () => void;
   previewNewKpis: (arg0: Kpis) => void;
   previewNewAssets: (arg0: AssetsBreakdown) => void;
   previewNewChartData: (arg0: Record<string, number>) => void;
   resetPreview: () => void;
 }) {
-  const [prdParam, setPrdParam] = useState(20);
+  const [percentage, setPercentage] = useState(20);
   const { address, startDate } = useContext(SimulationReactContext);
 
   // Fetch product endpoint
@@ -40,7 +44,7 @@ export default function Product({
     const resp = await fetch(
       `/api/backtest/spread/${address}/${startDate
         .toISOString()
-        .slice(0, 10)}/${prdParam}`
+        .slice(0, 10)}/${selectedAsset}/${percentage}`
     );
     if (!resp.ok)
       throw new Error(`Backtest fetch failed with status: ${resp.statusText}`);
@@ -102,8 +106,8 @@ export default function Product({
                   type="number"
                   min="0"
                   max="100"
-                  onChange={(e) => setPrdParam(parseInt(e.target.value))}
-                  value={prdParam}
+                  onChange={(e) => setPercentage(parseInt(e.target.value))}
+                  value={percentage}
                 />
               </span>
             </div>
@@ -142,12 +146,36 @@ export default function Product({
             </div>
           </div>
           <div className="pt-8 flex items-center justify-center">
-            <button
-              className=" py-4 px-8 bg-[#D5AF08] hover:bg-[#444] text-white font-bold"
-              onClick={launchPreview}
-            >
-              Run
-            </button>
+            {previewIsOn ? (
+              <button
+                className="bg-[#666] hover:bg-[#444] py-4 px-8 text-white font-bold"
+                onClick={() => resetPreview()}
+              >
+                Reset preview
+              </button>
+            ) : selectedAsset ? (
+              <button
+                className="bg-[#D5AF08] hover:bg-[#444] py-4 px-8 text-white font-bold"
+                onClick={() => selectedAsset && launchPreview()}
+              >
+                Run preview
+              </button>
+            ) : (
+              <button
+                className="bg-[#eaeaea] py-4 px-8 text-[#666] font-bold"
+                disabled={true}
+              >
+                Run preview
+              </button>
+            )}
+          </div>
+          <div
+            className={
+              "p-1 space-y-2 text-sm text-center" +
+              (selectedAsset ? " invisible" : "")
+            }
+          >
+            <p>To run the preview, first select an asset to be spread.</p>
           </div>
         </div>
       )}
