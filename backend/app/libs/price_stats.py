@@ -4,8 +4,6 @@ from math import isclose
 import numpy as np
 import pandas as pd
 
-from .types import Treasury
-
 ROLLING_WINDOW_DAYS = 7
 
 
@@ -25,9 +23,8 @@ def make_returns_df(hist_values: pd.Series, column_name: str) -> pd.DataFrame:
     return dataframe
 
 
-def make_returns_matrix(
-    treasury: Treasury,
-    augmented_token_hist_prices: dict[str, pd.DataFrame],
+def _make_returns_matrix(
+    token_returns_dfs: dict[str, pd.DataFrame],
     start: str,
     end: str,
 ):
@@ -39,7 +36,7 @@ def make_returns_matrix(
             symbol,
             hist_prices.sort_index().loc[start:end].reset_index(),
         )
-        for symbol, hist_prices in augmented_token_hist_prices.items()
+        for symbol, hist_prices in token_returns_dfs.items()
     ]
 
     def reducer_on_symbol_and_hist_prices(
@@ -63,33 +60,30 @@ def make_returns_matrix(
         .set_index("timestamp")
     )
 
-    # Remove ETH from matrix if not an actual portfolio asset
-    try:
-        treasury.get_asset("ETH")
-    except StopIteration:
-        returns_matrix.drop("ETH", axis=1, inplace=True)
-
     return returns_matrix
 
 
 # pylint: disable=too-many-locals
-def fill_asset_risk_contributions(
-    treasury: Treasury,
-    augmented_token_hist_prices: dict[str, pd.DataFrame],
+def calculate_risk_contributions(
+    returns_and_balances: dict[str, tuple[pd.DataFrame, float]],
     start: str,
     end: str,
-):
-    returns_matrix = make_returns_matrix(
-        treasury, augmented_token_hist_prices, start, end
+) -> dict[str, float]:
+    returns_matrix = _make_returns_matrix(
+        {symbol: rb[0] for symbol, rb in returns_and_balances.items()},
+        start,
+        end,
     )
 
-    current_balances = {asset.token_symbol: asset.balance for asset in treasury.assets}
+    total_balance = sum(rb[1] for rb in returns_and_balances.values())
+
     weights = np.array(
         [
             np.fromiter(
-                (current_balances[symbol] for symbol in returns_matrix.columns), float
+                (returns_and_balances[symbol][1] for symbol in returns_matrix.columns),
+                float,
             )
-            / treasury.usd_total
+            / total_balance
         ]
     )
 
@@ -108,21 +102,14 @@ def fill_asset_risk_contributions(
 
     component_percentages = component_contributions / std_dev[0][0]
 
-    for symbol, percentage in zip(returns_matrix.columns, component_percentages[0]):
-        asset = treasury.get_asset(symbol)
-        asset.risk_contribution = percentage
-
-    return treasury
+    return dict(zip(returns_matrix.columns, component_percentages[0]))
 
 
 def make_returns_correlations_matrix(
-    treasury: Treasury,
-    augmented_token_hist_prices: dict[str, pd.DataFrame],
+    token_returns_dfs: dict[str, pd.DataFrame],
     start: str,
     end: str,
 ):
-    returns_matrix = make_returns_matrix(
-        treasury, augmented_token_hist_prices, start, end
-    )
+    returns_matrix = _make_returns_matrix(token_returns_dfs, start, end)
 
     return returns_matrix.corr()

@@ -53,6 +53,9 @@ function App() {
   const [newAssets, setNewAssets] = useState(
     undefined as AssetsBreakdown | undefined
   );
+  const [selectedAsset, setSelectedAsset] = useState(
+    undefined as string | undefined
+  );
 
   const [chartData, setChartData] = useState({
     labels: [],
@@ -121,6 +124,7 @@ function App() {
       labels: chartData.labels,
       datasets: chartData.datasets.length === 0 ? [] : [chartData.datasets[0]],
     });
+    setSelectedAsset(undefined);
   };
 
   const previewNewChartData = (newData: Record<string, number>) => {
@@ -183,7 +187,15 @@ function App() {
             <Chart chartData={chartData} dateOptions={dateOptions} />
             <div className="p-10">
               <KpisDisplay newKpis={newKpis} baseKpis={baseKpis} />
-              <AssetsDisplay newAssets={newAssets} baseAssets={baseAssets} />
+              <AssetsDisplay
+                newAssets={newAssets}
+                baseAssets={baseAssets}
+                assetsAreSelectable={
+                  openedProduct === 0 && newAssets === undefined
+                }
+                selectedAsset={selectedAsset}
+                setSelectedAsset={setSelectedAsset}
+              />
             </div>
           </div>
           <div
@@ -200,7 +212,9 @@ function App() {
                 (openedProduct === undefined || index === openedProduct) && (
                   <Product
                     key={index}
+                    selectedAsset={selectedAsset}
                     opened={index === openedProduct}
+                    previewIsOn={newAssets !== undefined}
                     toggle={() => {
                       if (index === 0 && typeof baseKpis !== "undefined")
                         setOpenedProduct(

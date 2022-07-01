@@ -6,8 +6,14 @@ import dateutil
 from fastapi import FastAPI
 from pytz import UTC
 
-from .libs.tasks import get_assets
-from .libs.types import Treasury
+from .spread import build_spread_treasury_with_assets
+from .treasury import (
+    Balances,
+    Prices,
+    TotalBalance,
+    Treasury,
+    build_treasury_with_assets,
+)
 
 app = FastAPI()
 
@@ -46,17 +52,16 @@ class Portfolio:
     def from_treasury_with_assets(
         cls,
         treasury: Treasury,
-        augmented_token_hist_prices,
-        asset_hist_balances,  # pylint: disable=unused-argument
-        augmented_total_balance,
+        prices: Prices,
+        balances: Balances,  # pylint: disable=unused-argument
+        total_balance: TotalBalance,
         start: str,
         end: str,
     ):
         histprices = {
-            symbol: athp.loc[start:end]
-            for symbol, athp in augmented_token_hist_prices.items()
+            symbol: athp.loc[start:end] for symbol, athp in prices.prices.items()
         }
-        totalbalance = augmented_total_balance.loc[start:end]
+        totalbalance = total_balance.balance.loc[start:end]
 
         assets = {
             a.token_symbol: PortfolioAsset(
@@ -98,7 +103,7 @@ async def get_portfolio(address: str, start=str):
     end = end_date.strftime("%Y-%m-%d")
 
     portfolio = Portfolio.from_treasury_with_assets(
-        *(await get_assets.build_treasury_with_assets(address, 1, start, end)),
+        *(await build_treasury_with_assets(address, 1, start, end)),
         start,
         end,
     )
@@ -109,8 +114,9 @@ async def get_portfolio(address: str, start=str):
     )
 
 
-@app.get("/backtest/spread/{address}/{start}/{percentage}")
-async def backtest_spread(address: str, start: str, percentage: int):
+@app.get("/backtest/spread/{address}/{start}/{asset_symbol}/{percentage}")
+async def backtest_spread(address: str, start: str, asset_symbol: str, percentage: int):
+    print(asset_symbol)
     assert 0 <= percentage <= 100
 
     end_date = dateutil.utils.today(UTC) - datetime.timedelta(days=1)
@@ -118,7 +124,7 @@ async def backtest_spread(address: str, start: str, percentage: int):
 
     portfolio = Portfolio.from_treasury_with_assets(
         *(
-            await get_assets.build_spread_treasury_with_assets(
+            await build_spread_treasury_with_assets(
                 address,
                 1,
                 start,
