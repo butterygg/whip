@@ -93,7 +93,10 @@ def reload_treasuries_stats():
                 )
                 continue
 
-            for symbol, asset_hist_performance in augmented_token_hist_prices.items():
+            for (
+                symbol,
+                asset_hist_performance,
+            ) in augmented_token_hist_prices.prices.items():
                 store_asset_hist_performance(
                     symbol,
                     dumps(
@@ -107,7 +110,7 @@ def reload_treasuries_stats():
                     pipe,
                 )
 
-            for symbol, asset_hist_balance in asset_hist_balances.items():
+            for symbol, asset_hist_balance in asset_hist_balances.balances.items():
                 store_asset_hist_balance(
                     treasury.address,
                     symbol,
@@ -118,7 +121,7 @@ def reload_treasuries_stats():
             store_asset_correlations(
                 treasury.address,
                 price_stats.make_returns_correlations_matrix(
-                    augmented_token_hist_prices, start, end
+                    augmented_token_hist_prices.prices, start, end
                 ).to_json(orient="index"),
                 provider=pipe,
             )

@@ -96,9 +96,12 @@ def calculate_risk_contributions(
 
     summed_component_contributions = np.sum(component_contributions)
 
-    assert isclose(
-        summed_component_contributions, std_dev[0][0], rel_tol=0.0001
-    ), "error in calculations"
+    try:
+        assert isclose(
+            summed_component_contributions, std_dev[0][0], rel_tol=0.0001
+        ), "error in calculations"
+    except AssertionError:
+        return {"N/A": 1.0}
 
     component_percentages = component_contributions / std_dev[0][0]
 

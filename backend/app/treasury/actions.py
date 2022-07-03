@@ -4,10 +4,10 @@ from typing import Optional
 import pandas as pd
 
 from .. import db
-from ..libs import bitquery, coingecko, covalent, pd_inter_calc, price_stats
+from ..libs import bitquery, coingecko, pd_inter_calc, price_stats
 from ..libs import series as serieslib
 from ..libs.storage_helpers import maybe_populate_whitelist
-from .adapters.covalent import get_treasury, get_treasury_portfolio
+from .adapters.covalent import get_token_transfers, get_treasury, get_treasury_portfolio
 from .models import Balances, Prices, TotalBalance, Treasury
 
 
@@ -33,7 +33,7 @@ async def _get_asset_transfer_balances(
         token_symbol: (
             await bitquery.get_eth_transfers(treasury_address)
             if token_symbol == "ETH"
-            else await covalent.get_token_transfers(treasury_address, token_address)
+            else await get_token_transfers(treasury_address, token_address)
         )
         for token_symbol, token_address in tokens
     }

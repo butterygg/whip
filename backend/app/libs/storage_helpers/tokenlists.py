@@ -19,6 +19,8 @@ async def get_token_list(token_list: str) -> list[Union[str, None]]:
         whitelist = [
             token["address"] for token in resp.json()["tokens"] if token["chainId"] == 1
         ]
+        # ensure native ETH is always whitelisted
+        whitelist.append("0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")
     return whitelist
 
 
