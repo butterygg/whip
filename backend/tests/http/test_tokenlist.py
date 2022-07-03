@@ -10,7 +10,7 @@ from backend.app.libs.storage_helpers.tokenlists import (
     store_and_get_whitelists,
 )
 
-from .conftest import (
+from ..conftest import (
     HTTPStatusError,
     MockProvider,
     raise_http_status_error_404,
@@ -49,10 +49,11 @@ class TestTokenList:
         mocked_provider = MockProvider()
 
         await store_and_get_whitelists(mocked_provider)
-        assert mocked_provider.db_payload["whitelist"]
-        assert len(mocked_provider.db_payload["whitelist"]) == 2
-        assert "0x6d6f636b5f31" in mocked_provider.db_payload["whitelist"]
-        assert "0x6d6f636b5f32" in mocked_provider.db_payload["whitelist"]
+        assert mocked_provider.db_payload["whitelist"] == {
+            "0x6d6f636b5f31",
+            "0x6d6f636b5f32",
+            "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",  # Native ETH should always be whitelisted
+        }
 
     @mark.asyncio
     @mark.parametrize(
@@ -112,9 +113,10 @@ class TestTokenList:
             raising=True,
         )
         mocked_whitelist = await maybe_populate_whitelist("mocked_provider")
-        assert len(mocked_whitelist) == 2
-        assert "0x6d6f636b5f746f6b656e5f31" in mocked_whitelist
-        assert "0x6d6f636b5f746f6b656e5f32" in mocked_whitelist
+        assert mocked_whitelist == [
+            "0x6d6f636b5f746f6b656e5f31",
+            "0x6d6f636b5f746f6b656e5f32",
+        ]
 
     @mark.asyncio
     async def test_get_token_list_resp_err_404(self, monkeypatch: MonkeyPatch):

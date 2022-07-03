@@ -10,7 +10,7 @@ from backend.app.libs.storage_helpers.storage_helpers import (
 )
 from backend.app.libs.storage_helpers.treasury_cacher import _get_treasury_list
 
-from .conftest import (
+from ..conftest import (
     HTTPStatusError,
     raise_http_status_error_404,
     raise_http_status_error_501,
