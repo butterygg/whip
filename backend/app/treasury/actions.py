@@ -42,10 +42,7 @@ async def _fill_asset_hist_balances(
     def fill_asset_hist_balance(
         symbol, augmented_token_hist_price
     ) -> Optional[pd.DataFrame]:
-        if (
-            symbol not in asset_transfer_balances
-            or len(asset_transfer_balances[symbol]) < 2
-        ):
+        if symbol not in asset_transfer_balances:
             return None
         return pd_inter_calc.make_daily_hist_balance(
             symbol, asset_transfer_balances[symbol], augmented_token_hist_price.price

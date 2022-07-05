@@ -8,7 +8,7 @@ from dateutil.utils import today
 
 def make_daily_hist_balance(
     token_symbol: str, hist_transfer_balance: pd.Series, hist_price: pd.Series
-) -> Optional[pd.Series]:
+) -> pd.Series:
     def find_closest_quote(date: datetime.datetime) -> float:
         # For now, quote rates are not going as far back in time than portfolio
         # balances, so just return 0 if no quote
@@ -44,8 +44,6 @@ def make_daily_hist_balance(
         return _current_date
 
     rows = list(hist_transfer_balance.to_dict().items())
-    if len(rows) < 2:  # [FIXME]
-        return None
 
     for index, row in enumerate(rows):
         current_date = row[0].replace(hour=0, minute=0, second=0, microsecond=0)
