@@ -4,6 +4,7 @@ from typing import Iterable, Literal, TypeVar, Union
 
 import dateutil
 from fastapi import APIRouter, FastAPI
+from numpy import NaN
 from pytz import UTC
 
 from .spread import build_spread_treasury_with_assets
@@ -54,8 +55,12 @@ class Portfolio:
         assets = {
             a.token_symbol: PortfolioAsset(
                 allocation=a.balance / treasury.usd_total,
-                volatility=histprices[a.token_symbol]["std_dev"].mean(),
-                risk_contribution=a.risk_contribution,
+                volatility=None
+                if histprices[a.token_symbol]["std_dev"].mean() is NaN
+                else histprices[a.token_symbol]["std_dev"].mean(),
+                risk_contribution=a.risk_contribution
+                if hasattr(a, "risk_contribution")
+                else None,
             )
             for a in treasury.assets
         }

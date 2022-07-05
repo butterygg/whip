@@ -37,6 +37,7 @@ def _make_returns_matrix(
             hist_prices.sort_index().loc[start:end].reset_index(),
         )
         for symbol, hist_prices in token_returns_dfs.items()
+        if not hist_prices.sort_index().loc[start:end].empty
     ]
 
     def reducer_on_symbol_and_hist_prices(
@@ -101,8 +102,7 @@ def calculate_risk_contributions(
             summed_component_contributions, std_dev[0][0], rel_tol=0.0001
         ), "error in calculations"
     except AssertionError:
-        input_len = len(list(returns_and_balances.keys()))
-        return {k: 1 / input_len for k in returns_and_balances.keys()}
+        return dict(zip(returns_matrix.columns, [None for _ in returns_matrix.columns]))
 
     component_percentages = component_contributions / std_dev[0][0]
 
