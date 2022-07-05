@@ -18,7 +18,7 @@ CACHE_KEY_TEMPLATE_PORTFOLIO = "{address}_{chain_id}_{date}"
 async def _get_portfolio_data(
     treasury_address: str, chain_id: Optional[int] = 1
 ) -> dict[str, Any]:
-    timeout = Timeout(10.0, read=20.0, connect=25.0)
+    timeout = Timeout(10.0, read=60.0, connect=90.0)
     async with AsyncClient(timeout=timeout) as client:
         url = (
             f"https://api.covalenthq.com/v1/{chain_id}/address/{treasury_address}/"

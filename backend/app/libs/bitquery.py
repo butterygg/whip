@@ -8,7 +8,7 @@ from httpx import AsyncClient, Timeout
 from pytz import UTC
 
 from .. import db
-from .types import Transfer
+from ..treasury.adapters.types import Transfer
 
 BITQUERY_API_KEY = os.environ["BITQUERY_API_KEY"]
 ETH_QUERY_TEMPLATE = """
