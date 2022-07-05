@@ -15,10 +15,7 @@ from pytest import MonkeyPatch, mark, raises
 from backend.app.libs.coingecko import coins
 from backend.app.libs.types import Price
 
-from ..conftest import (
-    HTTPStatusError,
-    raise_http_status_error_404,
-)
+from ..conftest import HTTPStatusError, raise_http_status_error_404
 
 # Coingecko Tests
 
