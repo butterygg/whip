@@ -101,7 +101,8 @@ def calculate_risk_contributions(
             summed_component_contributions, std_dev[0][0], rel_tol=0.0001
         ), "error in calculations"
     except AssertionError:
-        return {"N/A": 1.0}
+        input_len = len(list(returns_and_balances.keys()))
+        return {k: 1 / input_len for k in returns_and_balances.keys()}
 
     component_percentages = component_contributions / std_dev[0][0]
 
