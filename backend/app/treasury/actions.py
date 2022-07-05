@@ -11,15 +11,6 @@ from .adapters.covalent import get_token_transfers, get_treasury, get_treasury_p
 from .models import Balances, Prices, TotalBalance, Treasury
 
 
-def _filter_out_small_assets(treasury: Treasury):
-    treasury.assets = [
-        asset
-        for asset in treasury.assets
-        if asset.balance / treasury.usd_total >= 0.5 / 100
-    ]
-    return treasury
-
-
 async def _get_asset_transfer_balances(
     treasury_address: str,
     token_symbols_and_addresses: set[tuple[str, str]],
@@ -95,10 +86,8 @@ async def _get_token_hist_prices(
 
 async def make_treasury_from_address(treasury_address: str, chain_id: str) -> Treasury:
     token_whitelist = await maybe_populate_whitelist(db)
-    return _filter_out_small_assets(
-        await get_treasury(
-            await get_treasury_portfolio(treasury_address, chain_id), token_whitelist
-        )
+    return await get_treasury(
+        await get_treasury_portfolio(treasury_address, chain_id), token_whitelist
     )
 
 
