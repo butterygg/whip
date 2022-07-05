@@ -23,7 +23,7 @@ class CovalentTransfer(Transfer):
 async def _get_transfers_data(
     treasury_address: str, contract_address: str, chain_id: int
 ) -> dict[str, Any]:
-    async with AsyncClient(timeout=Timeout(10.0, read=15.0, connect=30.0)) as client:
+    async with AsyncClient(timeout=Timeout(10.0, read=60.0, connect=90.0)) as client:
         resp = await client.get(
             f"https://api.covalenthq.com/v1/{chain_id}/address/{treasury_address}"
             + "/transfers_v2/?quote-currency=USD&format=JSON"

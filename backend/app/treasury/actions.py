@@ -4,7 +4,7 @@ from typing import Optional
 import pandas as pd
 
 from .. import db
-from ..libs import bitquery, coingecko, pd_inter_calc, price_stats
+from ..libs import bitquery, pd_inter_calc, price_stats
 from ..libs import series as serieslib
 from ..libs.storage_helpers import maybe_populate_whitelist
 from .adapters.covalent import get_token_transfers, get_treasury
@@ -71,7 +71,7 @@ async def _get_token_hist_prices(
         {("ETH", "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")} if add_eth else {}
     )
     maybe_prices = {
-        token_symbol: await coingecko.get_coin_hist_price(token_address, token_symbol)
+        token_symbol: await get_token_hist_price_covalent(token_address, token_symbol)
         for token_symbol, token_address in tokens
     }
     return {

@@ -34,6 +34,81 @@ def mocked_datetime(offset: int = 0, use_today: bool = False):
     return _mocked_datetime + timedelta(offset)
 
 
+covalent_hist_prices_v2_transfers = [
+    {
+        "contract_decimals": 18,
+        "contract_name": "OWL Token",
+        "contract_ticker_symbol": "OWL",
+        "contract_address": "0x1a5f9352af8af974bfc03399e3767df6370d82e4",
+        "supports_erc": ["erc20"],
+        "logo_url": "",
+        "update_at": "2022-07-13T22:51:12.022553016Z",
+        "quote_currency": "USD",
+        "prices": [
+            {
+                "contract_metadata": {
+                    "contract_decimals": 18,
+                    "contract_name": "OWL Token",
+                    "contract_ticker_symbol": "OWL",
+                    "contract_address": "0x1a5f9352af8af974bfc03399e3767df6370d82e4",
+                    "supports_erc": ["erc20"],
+                    "logo_url": "",
+                },
+                "date": "2022-07-13",
+                "price": 0.28732044,
+            },
+            {
+                "contract_metadata": {
+                    "contract_decimals": 18,
+                    "contract_name": "OWL Token",
+                    "contract_ticker_symbol": "OWL",
+                    "contract_address": "0x1a5f9352af8af974bfc03399e3767df6370d82e4",
+                    "supports_erc": ["erc20"],
+                    "logo_url": "",
+                },
+                "date": "2022-07-12",
+                "price": 0.28529906,
+            },
+            {
+                "contract_metadata": {
+                    "contract_decimals": 18,
+                    "contract_name": "OWL Token",
+                    "contract_ticker_symbol": "OWL",
+                    "contract_address": "0x1a5f9352af8af974bfc03399e3767df6370d82e4",
+                    "supports_erc": ["erc20"],
+                    "logo_url": "",
+                },
+                "date": "2022-07-11",
+                "price": 0.28879964,
+            },
+            {
+                "contract_metadata": {
+                    "contract_decimals": 18,
+                    "contract_name": "OWL Token",
+                    "contract_ticker_symbol": "OWL",
+                    "contract_address": "0x1a5f9352af8af974bfc03399e3767df6370d82e4",
+                    "supports_erc": ["erc20"],
+                    "logo_url": "",
+                },
+                "date": "2022-07-10",
+                "price": 0.29183155,
+            },
+            {
+                "contract_metadata": {
+                    "contract_decimals": 18,
+                    "contract_name": "OWL Token",
+                    "contract_ticker_symbol": "OWL",
+                    "contract_address": "0x1a5f9352af8af974bfc03399e3767df6370d82e4",
+                    "supports_erc": ["erc20"],
+                    "logo_url": "",
+                },
+                "date": "2022-07-09",
+                "price": 0.29352316,
+            },
+        ],
+    }
+]
+
 covalent_transfers_v2_transfers = [
     {
         "block_signed_at": "2021-08-30T18:26:19Z",

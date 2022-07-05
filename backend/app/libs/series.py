@@ -1,6 +1,6 @@
 import pandas as pd
 
-from .types import Price, Transfer
+from ..treasury.adapters.types import Price, Transfer
 
 
 def make_hist_transfer_series(
