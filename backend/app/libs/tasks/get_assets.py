@@ -76,8 +76,7 @@ def reload_treasuries_stats():
                     *treasury_metadata, start, end
                 )
             except TypeError:
-                # This error is likely caused by
-                # backend.app.libs.pd_inter_calc.make_daily_hist_balance
+                # This currently only raises when the given treasury has no balance
                 logger.error(  # [FIXME]
                     "error reducing augemented treasury balance for %s",
                     treasury_metadata[0],
