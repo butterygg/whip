@@ -67,7 +67,7 @@ async def test_covalent_transfers_success(monkeypatch: MonkeyPatch):
         },
     )
 
-    treasury_transfers = await covalent.get_data(
+    treasury_transfers = await covalent.get_transfer_data(
         "0x6d6f636b65645f7472656173757279", "", 1
     )
 
@@ -85,7 +85,7 @@ async def test_covalent_transfers_status_err(monkeypatch: MonkeyPatch):
     monkeypatch.setattr(MockResponse, "raise_for_status", raise_http_status_error_404)
 
     with raises(HTTPStatusError) as error:
-        treasury_transfers = await covalent._get_data("", "", 1)
+        treasury_transfers = await covalent._get_transfer_data("", "", 1)
 
         assert not treasury_transfers
         assert "mocked http status error" in error.value
@@ -97,7 +97,7 @@ async def test_covalent_transfers_bad_resp_json(monkeypatch: MonkeyPatch):
     monkeypatch.setattr(MockResponse, "json", lambda *_: {"dtaa": "{...}"})
 
     with raises(KeyError):
-        treasury_transfers = await covalent._get_data("", "", 1)
+        treasury_transfers = await covalent._get_transfer_data("", "", 1)
 
         assert not treasury_transfers
 
@@ -108,7 +108,7 @@ async def test_covalent_transfers_bad_json_err(monkeypatch: MonkeyPatch):
     monkeypatch.setattr(MockResponse, "json", lambda *_: loads("bad json response"))
 
     with raises(JSONDecodeError):
-        treasury_transfers = await covalent._get_data("", "", 1)
+        treasury_transfers = await covalent._get_transfer_data("", "", 1)
 
         assert not treasury_transfers
 
