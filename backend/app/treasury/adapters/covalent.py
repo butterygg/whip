@@ -19,7 +19,7 @@ class CovalentTransfer(Transfer):
     pass
 
 
-CACHE_HASH = "covalent_treasury"
+CACHE_HASH_TREASURY = "covalent_treasury"
 CACHE_KEY_TEMPLATE_PORTFOLIO = "{address}_{chain_id}_{date}"
 
 
@@ -47,8 +47,8 @@ async def get_treasury_portfolio(
         address=treasury_address, chain_id=chain_id, date=cache_date
     )
 
-    if db.hexists(CACHE_HASH, cache_key):
-        return json.loads(db.hget(CACHE_HASH, cache_key))
+    if db.hexists(CACHE_HASH_TREASURY, cache_key):
+        return json.loads(db.hget(CACHE_HASH_TREASURY, cache_key))
 
     try:
         data = await _get_treasury_portfolio(treasury_address, chain_id)
@@ -69,7 +69,7 @@ async def get_treasury_portfolio(
         )
         return {}
 
-    db.hset(CACHE_HASH, cache_key, json.dumps(data))
+    db.hset(CACHE_HASH_TREASURY, cache_key, json.dumps(data))
     return data
 
 
@@ -112,7 +112,7 @@ async def get_treasury(portfolio: Dict[str, Any], whitelist: list[str]) -> Treas
     return Treasury(portfolio["address"], assets, windows)
 
 
-CACHE_HASH = "covalent_transfers"
+CACHE_HASH_TRANSFERS = "covalent_transfers"
 CACHE_KEY_TEMPLATE_TRANSFERS = "{treasury_address}_{contract_address}_{chain_id}_{date}"
 
 
@@ -215,14 +215,14 @@ async def get_token_transfers(
         date=cache_date,
     )
 
-    if db.hexists(CACHE_HASH, cache_key):
-        balance_hist_data = json.loads(db.hget(CACHE_HASH, cache_key))
+    if db.hexists(CACHE_HASH_TRANSFERS, cache_key):
+        balance_hist_data = json.loads(db.hget(CACHE_HASH_TRANSFERS, cache_key))
     else:
         balance_hist_data = await get_transfer_data(
             treasury_address, contract_address, chain_id
         )
         if balance_hist_data:
-            db.hset(CACHE_HASH, cache_key, json.dumps(balance_hist_data))
+            db.hset(CACHE_HASH_TRANSFERS, cache_key, json.dumps(balance_hist_data))
 
     if not balance_hist_data:
         return None
