@@ -193,8 +193,6 @@ def _gen_transfers(
         for transfer in transfers:
             block_date = dateutil.parser.parse(transfer["block_signed_at"])
 
-            if not transfer["quote_rate"]:
-                continue
             delta = int(transfer["delta"])
             if transfer["transfer_type"] == "IN":
                 curr_balance += delta / 10**decimals if decimals > 0 else 1
