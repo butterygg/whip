@@ -11,5 +11,5 @@ else:
 task_serializer = "json"
 result_serializer = "json"
 accept_content = ["json"]
-timezone = "Europe/London"
+timezone = "UTC"
 enable_utc = True

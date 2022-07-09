@@ -28,7 +28,7 @@ load_dotenv()
 
 @celery_app.on_after_finalize.connect
 def setup_init_tasks(sender, **_):
-    sender.send_task("app.libs.tasks.get_assets.reload_whitelist")
+    sender.send_task("tasks.reload_whitelist")
 
     sender.add_periodic_task(
         crontab(hour=0, minute=30, nowfun=datetime.utcnow),
@@ -49,7 +49,7 @@ def setup_init_tasks(sender, **_):
     )
 
 
-@celery_app.task()
+@celery_app.task(name="tasks.reload_treasuries_stats")
 def reload_treasuries_stats():
     logger = get_task_logger(__name__)
 
@@ -126,7 +126,7 @@ def reload_treasuries_stats():
             pipe.execute()
 
 
-@celery_app.task()
+@celery_app.task(name="tasks.reload_whitelist")
 def reload_whitelist():
     try:
         whitelist = run(store_and_get_whitelists(db))
@@ -136,6 +136,6 @@ def reload_whitelist():
         logger.error("reload whitelist task failed: empty whitelist")
 
 
-@celery_app.task()
+@celery_app.task(name="tasks.reload_treasuries_list")
 def reload_treasuries_list():
     get_and_store_treasury_list(db)
