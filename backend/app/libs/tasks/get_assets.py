@@ -27,7 +27,9 @@ load_dotenv()
 
 
 @celery_app.on_after_finalize.connect
-def setup_periodic_tasks(sender, **_):
+def setup_init_tasks(sender, **_):
+    sender.send_task("app.libs.tasks.get_assets.reload_whitelist")
+
     sender.add_periodic_task(
         crontab(hour=0, minute=30, nowfun=datetime.utcnow),
         reload_treasuries_stats.s(),
@@ -45,11 +47,6 @@ def setup_periodic_tasks(sender, **_):
         reload_whitelist.s(),
         name="reload token whitelist",
     )
-
-
-@celery_app.on_after_finalize.connect
-def setup_init_tasks(**_):
-    reload_whitelist.apply_async()
 
 
 @celery_app.task()
