@@ -2,7 +2,7 @@
 import json
 from dataclasses import dataclass
 from os import getenv
-from typing import Any, Dict, Generator, List, Optional
+from typing import Any, Generator, Optional
 
 import dateutil
 from celery.utils.log import get_logger
@@ -11,7 +11,7 @@ from pytz import UTC
 
 from ... import db
 from ...libs.types import Transfer
-from ..models import ERC20, HistoricalPrice, Quote, Treasury
+from ..models import ERC20, Treasury
 
 
 @dataclass
@@ -25,7 +25,7 @@ CACHE_KEY_TEMPLATE_PORTFOLIO = "{address}_{chain_id}_{date}"
 
 async def _get_treasury_portfolio(
     treasury_address: str, chain_id: Optional[int] = 1
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     timeout = Timeout(10.0, read=20.0, connect=25.0)
     async with AsyncClient(timeout=timeout) as client:
         url = (
@@ -73,26 +73,7 @@ async def get_treasury_portfolio(
     return data
 
 
-async def get_treasury(portfolio: Dict[str, Any], whitelist: list[str]) -> Treasury:
-
-    windows: List[HistoricalPrice] = []
-    for item in portfolio["items"]:
-        if item["contract_address"] in whitelist:
-            windows.append(
-                HistoricalPrice(
-                    item["contract_address"],
-                    item["contract_name"],
-                    item["contract_ticker_symbol"],
-                    [
-                        Quote(
-                            dateutil.parser.parse(holding["timestamp"]),
-                            holding["quote_rate"],
-                        )
-                        for holding in item["holdings"]
-                    ],
-                )
-            )
-
+async def get_treasury(portfolio: dict[str, Any], whitelist: list[str]) -> Treasury:
     # Certain tokens a treasury may hold are noted as spam.
     # To prevent these tokens from corrupting the data,
     # we filter them out via a whitelist provided by tokenlists.org
@@ -109,7 +90,7 @@ async def get_treasury(portfolio: Dict[str, Any], whitelist: list[str]) -> Treas
         and item["holdings"]
     ]
 
-    return Treasury(portfolio["address"], assets, windows)
+    return Treasury(portfolio["address"], assets)
 
 
 CACHE_HASH_TRANSFERS = "covalent_transfers"
