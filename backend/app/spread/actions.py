@@ -64,7 +64,7 @@ def update_treasury_assets_with_spread_balances(
         asset.balance = balances.balances[asset.token_symbol].loc[end]
     try:
         treasury.get_asset(spread_token_symbol)
-    except StopIteration:
+    except StopIteration:  # [XXX] Replace this with a custom exception. We're not 100% happy with Treasury.assets being a list (and probably we want to make it a dict). So this leaky abstraction might be missed during a refactoring and thus provoke bugs down the line.
         treasury.assets.append(
             ERC20(
                 token_name=spread_token_name,
