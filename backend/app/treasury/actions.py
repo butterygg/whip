@@ -85,6 +85,7 @@ async def _get_token_hist_prices(
 
 
 async def make_treasury_from_address(treasury_address: str, chain_id: str) -> Treasury:
+    # [XXX] Move this to the outer (here and in multitreasury). In multitreasury, we need to call `make_treasury_from_address` multiple times. The token whitelists are shared amongst all treasuries.
     token_whitelist = await maybe_populate_whitelist(db)
     return await get_treasury(
         await get_treasury_portfolio(treasury_address, chain_id), token_whitelist
