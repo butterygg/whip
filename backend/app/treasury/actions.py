@@ -7,7 +7,7 @@ from .. import db
 from ..libs import bitquery, coingecko, pd_inter_calc, price_stats
 from ..libs import series as serieslib
 from ..libs.storage_helpers import maybe_populate_whitelist
-from .adapters.covalent import get_token_transfers, get_treasury, get_treasury_portfolio
+from .adapters.covalent import get_token_transfers, get_treasury
 from .models import Balances, Prices, TotalBalance, Treasury
 
 
@@ -83,9 +83,7 @@ async def _get_token_hist_prices(
 
 async def make_treasury_from_address(treasury_address: str, chain_id: str) -> Treasury:
     token_whitelist = await maybe_populate_whitelist(db)
-    return await get_treasury(
-        await get_treasury_portfolio(treasury_address, chain_id), token_whitelist
-    )
+    return await get_treasury(treasury_address, token_whitelist, chain_id)
 
 
 async def make_prices_from_tokens(
