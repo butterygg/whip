@@ -1,3 +1,7 @@
+from datetime import datetime, timedelta
+
+from dateutil.tz import UTC
+from dateutil.utils import today as today_in
 from httpx import HTTPStatusError, Request, Response
 
 
@@ -7,6 +11,27 @@ def raise_http_status_error_404(_):
         request=Request("get", "http://"),
         response=Response(404),
     )
+
+
+class MockResponse:
+    status_code = None
+    text = ""
+
+    def raise_for_status(self):
+        pass
+
+    @staticmethod
+    def json():
+        return None
+
+
+async def return_mocked_resp(*_, **__):
+    return MockResponse()
+
+
+def mocked_datetime(offset: int = 0, use_today: bool = False):
+    _mocked_datetime = datetime(2022, 1, 1) if not use_today else today_in(UTC)
+    return _mocked_datetime + timedelta(offset)
 
 
 covalent_transfers_v2_transfers = [
