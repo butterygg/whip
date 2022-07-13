@@ -6,7 +6,7 @@ import pytest
 
 from backend.app.libs import price_stats
 from backend.app.libs import series as serieslib
-from backend.app.treasury.adapters.types import Price
+from backend.app.treasury.models import Price
 
 
 def _make_price_from_strdate(price: float, strdate: str) -> Price:

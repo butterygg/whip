@@ -1,14 +1,13 @@
 import json
 import os
-from dataclasses import dataclass
 from typing import Any
 
 import dateutil
 from httpx import AsyncClient, Timeout
 from pytz import UTC
 
-from .. import db
-from ..treasury.adapters.types import Transfer
+from ... import db
+from ..models import Transfer
 
 BITQUERY_API_KEY = os.environ["BITQUERY_API_KEY"]
 ETH_QUERY_TEMPLATE = """
@@ -27,11 +26,6 @@ query{
 }
 """
 BITQUERY_URL = "https://graphql.bitquery.io/"
-
-
-@dataclass
-class BitqueryTransfer(Transfer):
-    amount: float  # transfer amount
 
 
 CACHE_HASH = "bitquery_eth"
@@ -55,7 +49,7 @@ async def _get_data(treasury_address: str) -> Any:
             return []
 
 
-async def get_eth_transfers(treasury_address: str) -> list[BitqueryTransfer]:
+async def get_eth_transfers(treasury_address: str) -> list[Transfer]:
     cache_date = dateutil.utils.today(UTC).strftime("%Y-%m-%d")
     cache_key = CACHE_KEY_TEMPLATE.format(address=treasury_address, date=cache_date)
     if db.hexists(CACHE_HASH, cache_key):
@@ -66,9 +60,8 @@ async def get_eth_transfers(treasury_address: str) -> list[BitqueryTransfer]:
         db.hset(CACHE_HASH, cache_key, json.dumps(balance_hist_data))
 
     return [
-        BitqueryTransfer(
+        Transfer(
             timestamp=dateutil.parser.parse(hist_item["timestamp"]),
-            balance=hist_item["value"],
             amount=hist_item["transferAmount"],
         )
         for hist_item in balance_hist_data

@@ -67,10 +67,12 @@ async def get_treasury(
     # we filter them out via a whitelist provided by tokenlists.org
     assets = [
         ERC20(
-            item["contract_name"],
-            item["contract_ticker_symbol"],
-            item["contract_address"],
-            item["holdings"][0]["close"]["quote"],
+            token_name=item["contract_name"],
+            token_symbol=item["contract_ticker_symbol"],
+            token_address=item["contract_address"],
+            balance_usd=item["holdings"][0]["close"]["quote"],
+            balance=int(item["holdings"][0]["close"]["balance"])
+            / 10 ** int(item["contract_decimals"]),
         )
         for item in portfolio_data["items"]
         if item["holdings"][0]["close"]["quote"]

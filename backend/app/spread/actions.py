@@ -59,9 +59,10 @@ def update_treasury_assets_with_spread_balances(
     spread_token_name: str,
     spread_token_symbol: str,
     spread_token_address: str,
+    spread_token_usd_quote: float,
 ) -> Treasury:
     for asset in treasury.assets:
-        asset.balance = balances.balances[asset.token_symbol].loc[end]
+        asset.balance_usd = balances.balances[asset.token_symbol].loc[end]
     try:
         treasury.get_asset(spread_token_symbol)
     except StopIteration:
@@ -70,10 +71,20 @@ def update_treasury_assets_with_spread_balances(
                 token_name=spread_token_name,
                 token_symbol=spread_token_symbol,
                 token_address=spread_token_address,
-                balance=balances.balances[spread_token_symbol].loc[end],
+                balance_usd=balances.balances[spread_token_symbol].loc[end],
+                balance=balances.balances[spread_token_symbol].loc[end]
+                / spread_token_usd_quote,
             )
         )
     return treasury
+
+
+def get_usd_quote(
+    spread_token_symbol: str, end: str
+):  # pylint: disable=unused-argument
+    if spread_token_symbol == "USDC":
+        return 1.0
+    raise NotImplementedError()
 
 
 async def build_spread_treasury_with_assets(
@@ -101,7 +112,7 @@ async def build_spread_treasury_with_assets(
     prices = await make_prices_from_tokens(tokens_sa_with_spread_token)
 
     balances = await make_balances_from_treasury_and_prices(
-        treasury.address, token_symbols_and_addresses, prices
+        treasury, token_symbols_and_addresses, prices
     )
 
     treasury = update_treasury_assets_from_whitelist(
@@ -117,6 +128,7 @@ async def build_spread_treasury_with_assets(
         start,
         end,
     )
+    spread_token_usd_quote = get_usd_quote(spread_token_symbol, end)
     treasury = update_treasury_assets_with_spread_balances(
         treasury,
         balances,
@@ -124,6 +136,7 @@ async def build_spread_treasury_with_assets(
         spread_token_name,
         spread_token_symbol,
         spread_token_address,
+        spread_token_usd_quote,
     )
 
     total_balance = make_total_balance_from_balances(balances)

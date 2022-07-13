@@ -54,7 +54,7 @@ class Portfolio:
 
         assets = {
             a.token_symbol: PortfolioAsset(
-                allocation=a.balance / treasury.usd_total,
+                allocation=a.balance_usd / treasury.usd_total,
                 volatility=None
                 if histprices[a.token_symbol]["std_dev"].mean() is NaN
                 else histprices[a.token_symbol]["std_dev"].mean(),
@@ -88,9 +88,6 @@ class Portfolio:
             for timestamp, balance in totalbalance.to_dict()["balance"].items()
         }
         return cls(assets=assets, kpis=kpis, data=data)
-
-
-# [XXX] Try moving Portfolio to its own domain module
 
 
 router = APIRouter(prefix="/api")

@@ -4,82 +4,42 @@ from typing import Optional
 import pandas as pd
 
 from .. import db
-from ..libs import bitquery, pd_inter_calc, price_stats
+from ..libs import pd_inter_calc, price_stats
 from ..libs import series as serieslib
 from ..libs.storage_helpers import maybe_populate_whitelist
+from .adapters import bitquery
 from .adapters.covalent import get_token_transfers, get_treasury
 from .adapters.covalent_pricefeed import get_token_hist_price_covalent
-from .models import Balances, Prices, TotalBalance, Treasury
+from .models import Balances, BalancesAtTransfers, Prices, TotalBalance, Treasury
 
 
-async def _get_asset_transfer_balances(
-    treasury_address: str,
+async def make_transfers_balances_for_treasury(
+    treasury: Treasury,
     token_symbols_and_addresses: set[tuple[str, str]],
     add_eth=True,
-) -> dict[str, pd.Series]:
+) -> BalancesAtTransfers:
     "Returns series of balances defined at times of assets transfers"
     tokens: set[tuple[str, str]] = token_symbols_and_addresses | (
-        {("ETH", "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")} if add_eth else {}
+        {("ETH", "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")} if add_eth else set()
     )
+    # [XXX] Can this be sparse? If yes, which cases? Should we consider the balances null?
+    # (think coin minted):
     maybe_transfers = {
         token_symbol: (
-            await bitquery.get_eth_transfers(treasury_address)
+            await bitquery.get_eth_transfers(treasury.address)
             if token_symbol == "ETH"
-            else await get_token_transfers(treasury_address, token_address)
+            else [_ async for _ in get_token_transfers(treasury.address, token_address)]
         )
         for token_symbol, token_address in tokens
     }
-    return {
-        symbol: serieslib.make_hist_transfer_series(symbol, transfers)
-        for symbol, transfers in maybe_transfers.items()
-        if transfers
-    }
 
-
-async def _fill_asset_hist_balances(
-    asset_transfer_balances: dict[str, pd.Series],
-    augmented_token_hist_prices: dict[str, pd.DataFrame],
-) -> dict[str, pd.Series]:
-    def fill_asset_hist_balance(
-        symbol, augmented_token_hist_price
-    ) -> Optional[pd.DataFrame]:
-        if symbol not in asset_transfer_balances:
-            return None
-        return pd_inter_calc.make_daily_hist_balance(
-            symbol, asset_transfer_balances[symbol], augmented_token_hist_price.price
-        )
-
-    maybe_asset_hist_balance = {
-        symbol: fill_asset_hist_balance(symbol, augmented_token_hist_price)
-        for symbol, augmented_token_hist_price in augmented_token_hist_prices.items()
-    }
-    return {
-        symbol: asset_hist_balance
-        for symbol, asset_hist_balance in maybe_asset_hist_balance.items()
-        if asset_hist_balance is not None
-    }
-
-
-async def _get_token_hist_prices(
-    token_symbols_and_addresses: set[tuple[str, str]], add_eth=True
-) -> dict[str, pd.Series]:
-    """Returns a dict of augmented token hist prices only for successful tokens
-
-    Successful tokens are the ones for which the data provider has returned a
-    successful result.
-    """
-    tokens: set[tuple[str, str]] = token_symbols_and_addresses | (
-        {("ETH", "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")} if add_eth else {}
+    return BalancesAtTransfers.from_transfer_and_end_balance_dict(
+        {
+            symbol: (transfers, treasury.get_asset(symbol).balance)
+            for symbol, transfers in maybe_transfers.items()
+            if transfers
+        }
     )
-    maybe_prices = {
-        token_symbol: await get_token_hist_price_covalent(token_address, token_symbol)
-        for token_symbol, token_address in tokens
-    }
-    return {
-        token_symbol: serieslib.make_hist_price_series(token_symbol, prices)
-        for token_symbol, prices in maybe_prices.items()
-        if prices
-    }
 
 
 async def make_treasury_from_address(treasury_address: str, chain_id: str) -> Treasury:
@@ -88,29 +48,63 @@ async def make_treasury_from_address(treasury_address: str, chain_id: str) -> Tr
 
 
 async def make_prices_from_tokens(
-    token_symbols_and_addresses: set[tuple[str, str]]
+    token_symbols_and_addresses: set[tuple[str, str]], add_eth=True
 ) -> Prices:
-    token_hist_prices = await _get_token_hist_prices(token_symbols_and_addresses)
+    """Returns a Prices object only for successful tokens
+
+    Successful tokens are the ones for which the data provider has returned a
+    successful result.
+    """
+    tokens: set[tuple[str, str]] = token_symbols_and_addresses | (
+        {("ETH", "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")} if add_eth else {}
+    )
+    maybe_token_hist_prices = {
+        token_symbol: await get_token_hist_price_covalent(token_address, token_symbol)
+        for token_symbol, token_address in tokens
+    }
+    token_prices_series = {
+        token_symbol: serieslib.make_hist_price_series(token_symbol, prices)
+        for token_symbol, prices in maybe_token_hist_prices.items()
+        if prices
+    }
     return Prices(
         prices={
             symbol: price_stats.make_returns_df(token_hist_price, "price")
-            for symbol, token_hist_price in token_hist_prices.items()
+            for symbol, token_hist_price in token_prices_series.items()
         }
     )
 
 
 async def make_balances_from_treasury_and_prices(
-    treasury_address: str,
+    treasury: Treasury,
     token_symbols_and_addresses: set[tuple[str, str]],
     prices: Prices,
 ) -> Balances:
-    return Balances(
-        balances=await _fill_asset_hist_balances(
-            await _get_asset_transfer_balances(
-                treasury_address, token_symbols_and_addresses
-            ),
-            prices.prices,
+    transfers = await make_transfers_balances_for_treasury(
+        treasury, token_symbols_and_addresses
+    )
+
+    def fill_asset_hist_balance(
+        symbol: str, price_series: pd.Series
+    ) -> Optional[pd.DataFrame]:
+        # [XXX] When should this happen? See maybe_transfers. If possible, this should not happen:
+        if symbol not in transfers.balances:
+            return None
+        return pd_inter_calc.make_daily_hist_balance(
+            symbol, transfers.balances[symbol], price_series
         )
+
+    maybe_asset_hist_balance = {
+        symbol: fill_asset_hist_balance(symbol, price_df.price)
+        for symbol, price_df in prices.prices.items()
+    }
+
+    return Balances(
+        balances={
+            symbol: asset_hist_balance
+            for symbol, asset_hist_balance in maybe_asset_hist_balance.items()
+            if asset_hist_balance is not None
+        }
     )
 
 
@@ -140,7 +134,7 @@ def update_treasury_assets_risk_contributions(
     end: str,
 ) -> Treasury:
     returns_and_balances = {
-        asset.token_symbol: (prices.prices[asset.token_symbol], asset.balance)
+        asset.token_symbol: (prices.prices[asset.token_symbol], asset.balance_usd)
         for asset in treasury.assets
     }
     for symbol, risk_contribution in price_stats.calculate_risk_contributions(
@@ -162,7 +156,7 @@ async def build_treasury_with_assets(
     prices = await make_prices_from_tokens(token_symbols_and_addresses)
 
     balances = await make_balances_from_treasury_and_prices(
-        treasury.address, token_symbols_and_addresses, prices
+        treasury, token_symbols_and_addresses, prices
     )
 
     treasury = update_treasury_assets_from_whitelist(
