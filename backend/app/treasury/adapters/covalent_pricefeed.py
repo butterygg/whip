@@ -9,7 +9,7 @@ from celery.utils.log import get_logger
 from httpx import AsyncClient, HTTPStatusError, Timeout
 
 from ... import db
-from .types import Price
+from ..models import Price
 
 COVALENT_URI = "https://api.covalenthq.com/v1"
 CACHE_HASH_PRICES = "covalent_prices"

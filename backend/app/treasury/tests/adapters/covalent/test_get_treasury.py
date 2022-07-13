@@ -51,7 +51,11 @@ async def test_get_treasury_success(patch_resp, patch_db):
         token_name=covalent_portfolio_v2_transfers[0]["contract_name"],
         token_symbol=covalent_portfolio_v2_transfers[0]["contract_ticker_symbol"],
         token_address=covalent_portfolio_v2_transfers[0]["contract_address"],
-        balance=covalent_portfolio_v2_transfers[0]["holdings"][0]["close"]["quote"],
+        balance_usd=covalent_portfolio_v2_transfers[0]["holdings"][0]["close"]["quote"],
+        balance=int(
+            covalent_portfolio_v2_transfers[0]["holdings"][0]["close"]["balance"]
+        )
+        / 10 ** int(covalent_portfolio_v2_transfers[0]["contract_decimals"]),
     )
     asset.risk_contribution = None
     treasury.assets[0].risk_contribution = None
