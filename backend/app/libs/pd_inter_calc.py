@@ -1,5 +1,4 @@
 import datetime
-from typing import Optional
 
 import pandas as pd
 from dateutil.tz import UTC
