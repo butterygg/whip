@@ -132,6 +132,15 @@ function App() {
     });
   };
 
+  const resetPreview = () => {
+    setNewKpis(undefined);
+    setNewAssets(undefined);
+    setChartData({
+      labels: chartData.labels,
+      datasets: chartData.datasets.length === 0 ? [] : [chartData.datasets[0]],
+    });
+  };
+
   const dateOptions = [
     {
       optionStartDate: deltaDate(today, -1, 0, 0),
@@ -150,7 +159,10 @@ function App() {
     },
   ].map(({ optionStartDate, ...obj }) => ({
     optionStartDate: optionStartDate,
-    callback: () => setStartDate(optionStartDate),
+    callback: () => {
+      setStartDate(optionStartDate);
+      resetPreview();
+    },
     ...obj,
   }));
 
@@ -217,17 +229,7 @@ function App() {
                     previewNewKpis={setNewKpis}
                     previewNewAssets={setNewAssets}
                     previewNewChartData={previewNewChartData}
-                    resetPreview={() => {
-                      setNewKpis(undefined);
-                      setNewAssets(undefined);
-                      setChartData({
-                        labels: chartData.labels,
-                        datasets:
-                          chartData.datasets.length === 0
-                            ? []
-                            : [chartData.datasets[0]],
-                      });
-                    }}
+                    resetPreview={resetPreview}
                     {...props}
                   />
                 )
