@@ -9,7 +9,7 @@ from httpx import AsyncClient, HTTPStatusError, Timeout
 from pytz import UTC
 
 from .... import db
-from ....libs.types import Transfer
+from ..types import Transfer
 
 CACHE_HASH_TRANSFERS = "covalent_transfers"
 CACHE_KEY_TEMPLATE_TRANSFERS = "{treasury_address}_{contract_address}_{chain_id}_{date}"
