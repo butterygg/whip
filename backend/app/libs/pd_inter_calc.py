@@ -1,25 +1,23 @@
 import datetime
-from typing import Optional
 
+import pandas as pd
 from dateutil.tz import UTC
 from dateutil.utils import today
-from pandas import DataFrame as DF
-from pandas import Index, Series
 
 
-def portfolio_midnight_filler(
-    portfolio_balances: Series, quote_rates: Series
-) -> Optional[DF]:
+def make_daily_hist_balance(
+    token_symbol: str, hist_transfer_balance: pd.Series, hist_price: pd.Series
+) -> pd.Series:
     def find_closest_quote(date: datetime.datetime) -> float:
         # For now, quote rates are not going as far back in time than portfolio
         # balances, so just return 0 if no quote
-        if date < quote_rates.index[0]:
+        if date < hist_price.sort_index().index[0]:
             return 0
 
         earlier_date = date
         while True:
             try:
-                return quote_rates.loc[earlier_date.strftime("%Y-%m-%d")]
+                return hist_price.loc[earlier_date.strftime("%Y-%m-%d")]
             except KeyError:
                 earlier_date -= datetime.timedelta(days=1)
                 continue
@@ -44,14 +42,12 @@ def portfolio_midnight_filler(
             _current_date += datetime.timedelta(days=1)
         return _current_date
 
-    rows = list(portfolio_balances.to_dict().items())
-    if len(rows) < 2:
-        return None
+    rows = list(hist_transfer_balance.to_dict().items())
 
     for index, row in enumerate(rows):
-        current_date = row[0][0].replace(hour=0, minute=0, second=0, microsecond=0)
+        current_date = row[0].replace(hour=0, minute=0, second=0, microsecond=0)
         if index < len(rows) - 1:
-            next_date = rows[index + 1][0][0].replace(
+            next_date = rows[index + 1][0].replace(
                 hour=0, minute=0, second=0, microsecond=0
             )
         else:
@@ -68,8 +64,9 @@ def portfolio_midnight_filler(
 
     assert current_date == _today + datetime.timedelta(days=1)
 
-    return DF(
-        [[ts, value] for ts, value in zip(filled_datetimes, filled_rows)],
-        index=Index(filled_datetimes, name="timestamp"),
-        columns=["timestamp", "balance"],
+    return pd.Series(
+        filled_rows,
+        index=pd.Index(filled_datetimes, name="timestamp"),
+        name=f"{token_symbol} daily historical balance",
+        dtype="float64",
     )

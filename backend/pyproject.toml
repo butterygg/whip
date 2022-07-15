@@ -1,2 +1,4 @@
 [tool.isort]
 profile = "black"
+[tool.pytest.ini_options]
+asyncio_mode = "strict"

@@ -5,7 +5,6 @@
 *.dir
 ## env files
 **/.env
-**/app.env
 # dirs
 .venv
 __pycache__

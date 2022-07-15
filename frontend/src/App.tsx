@@ -1,94 +1,46 @@
-import { useEffect, useState, createContext, useContext } from "react";
-import { Line } from "react-chartjs-2";
+import { useEffect, useState } from "react";
+import { ChartData } from "chart.js";
+
 import logo from "./whipped-cream.png";
 import "./App.css";
-import {
-  Chart as ChartJS,
-  ChartData,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-} from "chart.js";
+import { AssetsBreakdown, Kpis } from "./types";
+import { getTodayMidnight, deltaDate } from "./dateUtils";
+import { SimulationReactContext } from "./simulationContext";
+import AssetsDisplay from "./components/AssetsDisplay";
+import Product from "./components/Product";
+import KpisDisplay from "./components/KpisDisplay";
+import Chart from "./components/Chart";
 
-const TREASURIES: Record<string, string> = {
-  "0x1a9c8182c09f50c8318d769245bea52c32be35bc": "Uniswap",
-  "0x660F6D6c9BCD08b86B50e8e53B537F2B40f243Bd": "FWB",
-  "0x78605df79524164911c144801f41e9811b7db73d": "BitDAO",
-  "0x0BC3807Ec262cB779b38D65b38158acC3bfedE10": "NounsDAO",
-  "0x57a8865cfb1ecef7253c27da6b4bc3daee5be518": "Gitcoin DAO",
-  "0xde21f729137c5af1b01d73af1dc21effa2b8a0d6": "Gitcoin DAO",
-  "0xfe89cc7abb2c4183683ab71653c4cdc9b02d44b7": "ENS DAO",
-  "0x849d52316331967b6ff1198e5e32a0eb168d039d": "Gnosis DAO",
-  "0x0da0c3e52c977ed3cbc641ff02dd271c3ed55afe": "Gnosis DAO",
-  "0xec83f750adfe0e52a8b0dba6eeb6be5ba0bee535": "Gnosis DAO",
-  "0x54396b93c10c685a21c8b5610c15f82a54c9c22e": "Gnosis DAO",
-};
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend
-);
-
-type ProductDescription = {
-  name: string;
-  provider: string;
-  description: string;
-  tokens: string[];
-  logo: string;
-};
-type AssetsBreakdown = Record<
-  string,
+const PRODUCTS = [
   {
-    allocation: number;
-    volatility: number;
-    riskContribution: number;
-  }
->;
-type Kpis = {
-  totalValue: number;
-  volatility: number;
-  returnVsMarket: number | "Infinity";
-};
-
-const getTodayMidnight = () => {
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-  return today;
-};
-
-// https://stackoverflow.com/a/54452875/931156
-function deltaDate(input: Date, years: number, months: number, days: number) {
-  return new Date(
-    input.getFullYear() + years,
-    input.getMonth() + months,
-    Math.min(
-      input.getDate() + days,
-      new Date(
-        input.getFullYear() + years,
-        input.getMonth() + months + 1,
-        0
-      ).getDate()
-    )
-  );
-}
-
-type SimulationContext = {
-  address: string;
-  startDate: Date;
-};
-const SimulationReactContext = createContext<SimulationContext>({
-  address: "",
-  startDate: deltaDate(getTodayMidnight(), -1, 0, 0),
-});
+    name: "Spread",
+    provider: "Butter",
+    description: "diversification · stables",
+    tokens: ["USDC"],
+    logo: logo,
+  },
+  {
+    name: "Range Tokens",
+    provider: "UMA",
+    description: "debt-based funding",
+    tokens: ["yUSD"],
+    logo: logo,
+  },
+  {
+    name: "Squeeth-Crab",
+    provider: "Opyn",
+    description: "hedging · eth",
+    tokens: ["oSQTH"],
+    logo: logo,
+  },
+  {
+    name: "Spread",
+    provider: "Butter",
+    description: "diversification · ETH",
+    tokens: ["ETH"],
+    logo: logo,
+  },
+];
 
 function App() {
   const today = getTodayMidnight();
@@ -101,43 +53,15 @@ function App() {
   const [newAssets, setNewAssets] = useState(
     undefined as AssetsBreakdown | undefined
   );
+  const [selectedAsset, setSelectedAsset] = useState(
+    undefined as string | undefined
+  );
 
   const [chartData, setChartData] = useState({
     labels: [],
     datasets: [],
   } as ChartData<"line">);
   const [openedProduct, setOpenedProduct] = useState<undefined | number>();
-
-  const products = [
-    {
-      name: "Spread",
-      provider: "Butter",
-      description: "diversification · stables",
-      tokens: ["USDC"],
-      logo: logo,
-    },
-    {
-      name: "Range Tokens",
-      provider: "UMA",
-      description: "debt-based funding",
-      tokens: ["yUSD"],
-      logo: logo,
-    },
-    {
-      name: "Squeeth-Crab",
-      provider: "Opyn",
-      description: "hedging · eth",
-      tokens: ["oSQTH"],
-      logo: logo,
-    },
-    {
-      name: "Spread",
-      provider: "Butter",
-      description: "diversification · ETH",
-      tokens: ["ETH"],
-      logo: logo,
-    },
-  ];
 
   // Change the URL
   useEffect(() => {
@@ -193,15 +117,6 @@ function App() {
     })();
   }, [address, startDate]);
 
-  const resetAssets = () => {
-    setNewKpis(undefined);
-    setNewAssets(undefined);
-    setChartData({
-      labels: chartData.labels,
-      datasets: chartData.datasets.length === 0 ? [] : [chartData.datasets[0]],
-    });
-  };
-
   const previewNewChartData = (newData: Record<string, number>) => {
     setChartData({
       labels: chartData.labels,
@@ -217,14 +132,36 @@ function App() {
     });
   };
 
+  const dateOptions = [
+    {
+      optionStartDate: deltaDate(today, -1, 0, 0),
+      selectedText: "Past year",
+      unselectedText: "1 year",
+    },
+    {
+      optionStartDate: deltaDate(today, 0, -3, 0),
+      selectedText: "Past 3 months",
+      unselectedText: "3 months",
+    },
+    {
+      optionStartDate: deltaDate(today, 0, -1, 0),
+      selectedText: "Past month",
+      unselectedText: "1 month",
+    },
+  ].map(({ optionStartDate, ...obj }) => ({
+    optionStartDate: optionStartDate,
+    callback: () => setStartDate(optionStartDate),
+    ...obj,
+  }));
+
   return (
     <SimulationReactContext.Provider
-      value={{ address: address, startDate: startDate }}
+      value={{ address: address, startDate: startDate, today: today }}
     >
       <div>
         <header className="p-2 flex justify-between items-center">
           <div className="m-3 w-[28em] p-2"></div>
-          <p className="text-6xl font-bold text-[#E1B76D]">WHIP</p>
+          <p className="text-6xl font-bold text-biscuit">WHIP</p>
           <input
             className="m-3 w-[28em] p-2"
             placeholder={address || "Address"}
@@ -237,97 +174,40 @@ function App() {
         </header>
         <div className="flex items-center justify-center">
           <div className="w-2/3 m-10">
-            <div className="w-full p-4 text-white  ">
-              <div className="flex items-center justify-center">
-                <Line
-                  data={chartData}
-                  options={{
-                    responsive: true,
-                    plugins: {
-                      legend: {
-                        position: "top" as const,
-                      },
-                      title: {
-                        display: true,
-                        text:
-                          address in TREASURIES
-                            ? `${TREASURIES[address]} treasury`
-                            : "Treasury holdings",
-                      },
-                    },
-                    elements: {
-                      point: {
-                        radius: 1,
-                      },
-                    },
-                  }}
-                />
-              </div>
-              <div className="m-4 space-x-0.5 flex items-center justify-center text-gray-700 text-s">
-                <div
-                  className={`hover:cursor-pointer p-2 ${
-                    startDate.getTime() === deltaDate(today, -1, 0, 0).getTime()
-                      ? "bg-[#E26139] font-semibold text-white"
-                      : "bg-white"
-                  }`}
-                  onClick={() => {
-                    setStartDate(deltaDate(today, -1, 0, 0));
-                  }}
-                >
-                  {startDate.getTime() === deltaDate(today, -1, 0, 0).getTime()
-                    ? "Past year"
-                    : "1 year"}
-                </div>
-                <div
-                  className={`hover:cursor-pointer p-2 ${
-                    startDate.getTime() === deltaDate(today, 0, -3, 0).getTime()
-                      ? "bg-[#E26139] font-semibold text-white"
-                      : "bg-white"
-                  }`}
-                  onClick={() => {
-                    setStartDate(deltaDate(today, 0, -3, 0));
-                  }}
-                >
-                  {startDate.getTime() === deltaDate(today, 0, -3, 0).getTime()
-                    ? "Past 3 months"
-                    : "3 months"}
-                </div>
-                <div
-                  className={`hover:cursor-pointer p-2 ${
-                    startDate.getTime() === deltaDate(today, 0, -1, 0).getTime()
-                      ? "bg-[#E26139] font-semibold text-white"
-                      : "bg-white"
-                  }`}
-                  onClick={() => {
-                    setStartDate(deltaDate(today, 0, -1, 0));
-                  }}
-                >
-                  {startDate.getTime() === deltaDate(today, 0, -1, 0).getTime()
-                    ? "Past month"
-                    : "1 month"}
-                </div>
-              </div>
-            </div>
+            <Chart chartData={chartData} dateOptions={dateOptions} />
             <div className="p-10">
               <KpisDisplay newKpis={newKpis} baseKpis={baseKpis} />
-              <AssetsDisplay newAssets={newAssets} baseAssets={baseAssets} />
+              <AssetsDisplay
+                newAssets={newAssets}
+                baseAssets={baseAssets}
+                selectedAsset={selectedAsset}
+              />
             </div>
           </div>
           <div
             className={
-              (openedProduct === undefined ? "p-6 " : "") +
-              "bg-[#eee] w-1/3 m-10 space-y-6"
+              (openedProduct === undefined
+                ? "p-6 bg-biscuit bg-opacity-20 "
+                : "border-strawberry border-4 ") +
+              " w-1/3 m-10 space-y-6 rounded-lg"
             }
           >
             {openedProduct === undefined && (
-              <h2 className="text-3xl mb-6">Products</h2>
+              <h2 className="text-3xl font-extrabold mb-6 text-strawberry">
+                Strategies
+              </h2>
             )}
-            {products.map(
+            {PRODUCTS.map(
               (props, index) =>
                 (openedProduct === undefined || index === openedProduct) && (
                   <Product
                     key={index}
+                    assets={Object.keys(baseAssets)}
+                    selectedAsset={selectedAsset}
+                    setSelectedAsset={setSelectedAsset}
+                    swappedAmount={undefined}
                     opened={index === openedProduct}
+                    previewIsOn={newAssets !== undefined}
                     toggle={() => {
                       if (index === 0 && typeof baseKpis !== "undefined")
                         setOpenedProduct(
@@ -337,7 +217,17 @@ function App() {
                     previewNewKpis={setNewKpis}
                     previewNewAssets={setNewAssets}
                     previewNewChartData={previewNewChartData}
-                    resetPreview={() => resetAssets()}
+                    resetPreview={() => {
+                      setNewKpis(undefined);
+                      setNewAssets(undefined);
+                      setChartData({
+                        labels: chartData.labels,
+                        datasets:
+                          chartData.datasets.length === 0
+                            ? []
+                            : [chartData.datasets[0]],
+                      });
+                    }}
                     {...props}
                   />
                 )
@@ -346,259 +236,6 @@ function App() {
         </div>
       </div>
     </SimulationReactContext.Provider>
-  );
-}
-
-function KpisDisplay({
-  newKpis,
-  baseKpis,
-}: {
-  newKpis: Kpis | undefined;
-  baseKpis: Kpis | undefined;
-}) {
-  const kpis = newKpis || baseKpis;
-  return (
-    <div className="mb-10 flex justify-between items-center">
-      <div className="bg-[#eee] w-40 pb-4 pt-4 pl-6 pr-6 text-center">
-        {typeof kpis !== "undefined" && (
-          <p
-            className={
-              (newKpis === undefined ? "" : "text-[#D5AF08] ") +
-              "text-2xl font-bold"
-            }
-          >
-            ${(kpis.totalValue / 1_000_000).toFixed(0)}m
-          </p>
-        )}
-        <p>Total Value</p>
-      </div>{" "}
-      <div className="bg-[#eee] w-40 pb-4 pt-4 pl-6 pr-6 text-center">
-        {typeof kpis !== "undefined" && (
-          <p
-            className={
-              (newKpis === undefined ? "" : "text-[#D5AF08] ") +
-              "text-2xl font-bold"
-            }
-          >
-            {(kpis.volatility * 100).toFixed(0)}%
-          </p>
-        )}
-        <p>Volatility</p>
-      </div>
-      <div className="bg-[#eee] w-40 pb-4 pt-4 pl-6 pr-6 text-center">
-        {typeof kpis !== "undefined" && (
-          <p
-            className={
-              (newKpis === undefined ? "" : "text-[#D5AF08] ") +
-              "text-2xl font-bold"
-            }
-          >
-            {kpis.returnVsMarket === "Infinity"
-              ? "∞"
-              : ((kpis.returnVsMarket as number) * 100).toFixed(0) + "%"}
-          </p>
-        )}
-        <p>Return vs ETH</p>
-      </div>
-    </div>
-  );
-}
-
-function AssetsDisplay({
-  newAssets,
-  baseAssets,
-}: {
-  newAssets: AssetsBreakdown | undefined;
-  baseAssets: AssetsBreakdown;
-}) {
-  const assets = newAssets || baseAssets;
-  const introducedAssetsNames =
-    newAssets === undefined
-      ? []
-      : Object.keys(newAssets).filter(
-          (assetName) => !Object.keys(baseAssets).includes(assetName)
-        );
-
-  return (
-    <table className="table-auto w-full text-left">
-      <thead>
-        <tr className="border-b-2 border-black">
-          <th className="w-1/3 p-2">Asset</th>
-          <th className="p-2">Allocation</th>
-          <th className="p-2">Volatility</th>
-          <th className="p-2">Risk Contribution</th>
-        </tr>
-      </thead>
-      <tbody>
-        {Object.entries(assets).map(
-          ([assetName, { allocation, volatility, riskContribution }]) => (
-            <tr key={assetName} className="border-b">
-              <td className="p-2">
-                <span
-                  className={
-                    (introducedAssetsNames.includes(assetName)
-                      ? "text-[#D5AF08] "
-                      : "text-[#666] ") + "text-l mr-2"
-                  }
-                >
-                  ●
-                </span>
-                {assetName}
-              </td>
-              <td className="p-2">{`${(allocation * 100).toFixed(0)}%`}</td>
-              <td className="p-2">{`${(volatility * 100).toFixed(1)}%`}</td>
-              <td className="p-2">{`${(riskContribution * 100).toFixed(
-                2
-              )}%`}</td>
-            </tr>
-          )
-        )}
-      </tbody>
-    </table>
-  );
-}
-
-function Product({
-  name,
-  provider,
-  description,
-  tokens,
-  opened,
-  toggle,
-  previewNewKpis,
-  previewNewAssets,
-  previewNewChartData,
-  resetPreview,
-}: ProductDescription & {
-  opened: boolean;
-  toggle: () => void;
-  previewNewKpis: (arg0: Kpis) => void;
-  previewNewAssets: (arg0: AssetsBreakdown) => void;
-  previewNewChartData: (arg0: Record<string, number>) => void;
-  resetPreview: () => void;
-}) {
-  const [prdParam, setPrdParam] = useState(20);
-  const { address, startDate } = useContext(SimulationReactContext);
-
-  // Fetch product endpoint
-  const launchPreview = async () => {
-    if (!opened) return;
-
-    const resp = await fetch(
-      `/api/backtest/spread/${address}/${startDate
-        .toISOString()
-        .slice(0, 10)}/${prdParam}`
-    );
-    if (!resp.ok)
-      throw new Error(`Backtest fetch failed with status: ${resp.statusText}`);
-    const { assets, kpis, data } = await resp.json();
-
-    previewNewKpis(kpis);
-    previewNewAssets(assets);
-    previewNewChartData(data);
-  };
-
-  return (
-    <div>
-      <div
-        className={
-          (opened ? "" : "hover:cursor-pointer hover:bg-[#ccc] ") +
-          "p-4 bg-[#ddd] flex items-center justify-between"
-        }
-        onClick={toggle}
-      >
-        <div className="flex items-center justify-start">
-          <img src={logo} className="h-20" />
-          <div className="ml-4">
-            <div className="text-2xl">{name}</div>
-            <div className="uppercase text-xs">
-              <b>{provider}</b> · {description}
-            </div>
-            <div>
-              {tokens.map((token) => (
-                <span
-                  key={token}
-                  className="bg-[#bbb] pl-1 pr-1 p-0.5 rounded-2xl text-xs"
-                >
-                  {token}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-        <span
-          className={
-            (opened ? "" : "invisible ") +
-            "hover:cursor-pointer hover:bg-[#ccc] text-right text-2xl mb-12 px-2 rounded-2xl"
-          }
-          onClick={resetPreview}
-        >
-          𝗫
-        </span>
-      </div>
-      {opened && (
-        <div className="p-4 space-y-2 text-xl font-semibold">
-          <div className="p-4 space-y-2">
-            <h3 className="font-bold">You swap</h3>
-            <div className="flex items-center justify-between">
-              <span className="uppercase">Asset{"\u00A0"}%</span>
-              <span>
-                <input
-                  className="w-[3em] p-2 text-right"
-                  placeholder="20"
-                  type="number"
-                  min="0"
-                  max="100"
-                  onChange={(e) => setPrdParam(parseInt(e.target.value))}
-                  value={prdParam}
-                />
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="uppercase">Value{"\u00A0"}$</span>
-              <span>
-                <input
-                  className="p-2 text-right"
-                  disabled={true}
-                  value="12,000,000"
-                />
-              </span>
-            </div>
-          </div>
-          <div className="p-4 space-y-2 bg-[#ddd]">
-            <h3 className="font-bold">You receive</h3>
-            <div className="flex items-center justify-between">
-              <span className="uppercase">UDSC</span>
-              <span>
-                <input
-                  className="p-2 text-right bg-[#ddd]"
-                  disabled={true}
-                  value={"20,000"}
-                />
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="uppercase">Value{"\u00A0"}$</span>
-              <span>
-                <input
-                  className="p-2 text-right bg-[#ddd]"
-                  disabled={true}
-                  value={"$12,000,000"}
-                />
-              </span>
-            </div>
-          </div>
-          <div className="pt-8 flex items-center justify-center">
-            <button
-              className=" py-4 px-8 bg-[#D5AF08] hover:bg-[#444] text-white font-bold"
-              onClick={launchPreview}
-            >
-              Run
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
   );
 }
 

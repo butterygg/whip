@@ -3,23 +3,18 @@ from dataclasses import asdict, dataclass
 from typing import Iterable, Literal, TypeVar, Union
 
 import dateutil
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
+from numpy import NaN
 from pytz import UTC
 
-from .libs.tasks import get_assets
-from .libs.types import Treasury
-
-app = FastAPI()
-
-T = TypeVar("T")
-
-
-def snake_to_camel_dict_factory(items: Iterable[tuple[str, T]]) -> dict[str, T]:
-    def camel(snake_str):
-        components = snake_str.split("_")
-        return components[0] + "".join(x.title() for x in components[1:])
-
-    return {camel(k): v for k, v in items}
+from .spread import build_spread_treasury_with_assets
+from .treasury import (
+    Balances,
+    Prices,
+    TotalBalance,
+    Treasury,
+    build_treasury_with_assets,
+)
 
 
 @dataclass
@@ -46,23 +41,26 @@ class Portfolio:
     def from_treasury_with_assets(
         cls,
         treasury: Treasury,
-        augmented_token_hist_prices,
-        asset_hist_balances,  # pylint: disable=unused-argument
-        augmented_total_balance,
+        prices: Prices,
+        balances: Balances,  # pylint: disable=unused-argument
+        total_balance: TotalBalance,
         start: str,
         end: str,
     ):
         histprices = {
-            symbol: athp.set_index("timestamp").loc[start:end]
-            for symbol, athp in augmented_token_hist_prices.items()
+            symbol: athp.loc[start:end] for symbol, athp in prices.prices.items()
         }
-        totalbalance = augmented_total_balance.loc[start:end]
+        totalbalance = total_balance.balance.loc[start:end]
 
         assets = {
             a.token_symbol: PortfolioAsset(
                 allocation=a.balance / treasury.usd_total,
-                volatility=histprices[a.token_symbol]["std_dev"].mean(),
-                risk_contribution=a.risk_contribution,
+                volatility=None
+                if histprices[a.token_symbol]["std_dev"].mean() is NaN
+                else histprices[a.token_symbol]["std_dev"].mean(),
+                risk_contribution=a.risk_contribution
+                if hasattr(a, "risk_contribution")
+                else None,
             )
             for a in treasury.assets
         }
@@ -92,13 +90,29 @@ class Portfolio:
         return cls(assets=assets, kpis=kpis, data=data)
 
 
-@app.get("/portfolio/{address}/{start}")
+# [XXX] Try moving Portfolio to its own domain module
+
+
+router = APIRouter(prefix="/api")
+
+T = TypeVar("T")
+
+
+def snake_to_camel_dict_factory(items: Iterable[tuple[str, T]]) -> dict[str, T]:
+    def camel(snake_str):
+        components = snake_str.split("_")
+        return components[0] + "".join(x.title() for x in components[1:])
+
+    return {camel(k): v for k, v in items}
+
+
+@router.get("/portfolio/{address}/{start}")
 async def get_portfolio(address: str, start=str):
     end_date = dateutil.utils.today(UTC) - datetime.timedelta(days=1)
     end = end_date.strftime("%Y-%m-%d")
 
     portfolio = Portfolio.from_treasury_with_assets(
-        *(await get_assets.build_treasury_with_assets(address, 1, start, end)),
+        *(await build_treasury_with_assets(address, 1, start, end)),
         start,
         end,
     )
@@ -109,8 +123,10 @@ async def get_portfolio(address: str, start=str):
     )
 
 
-@app.get("/backtest/spread/{address}/{start}/{percentage}")
-async def backtest_spread(address: str, start: str, percentage: int):
+@router.get("/backtest/spread/{address}/{start}/{token_to_divest_from}/{percentage}")
+async def backtest_spread(
+    address: str, start: str, token_to_divest_from: str, percentage: int
+):
     assert 0 <= percentage <= 100
 
     end_date = dateutil.utils.today(UTC) - datetime.timedelta(days=1)
@@ -118,11 +134,12 @@ async def backtest_spread(address: str, start: str, percentage: int):
 
     portfolio = Portfolio.from_treasury_with_assets(
         *(
-            await get_assets.build_spread_treasury_with_assets(
+            await build_spread_treasury_with_assets(
                 address,
                 1,
                 start,
                 end,
+                token_to_divest_from,
                 spread_token_name="USD Coin",
                 spread_token_symbol="USDC",
                 spread_token_address="0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
@@ -137,3 +154,7 @@ async def backtest_spread(address: str, start: str, percentage: int):
         portfolio,
         dict_factory=snake_to_camel_dict_factory,
     )
+
+
+app = FastAPI()
+app.include_router(router)

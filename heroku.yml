@@ -4,10 +4,10 @@ setup:
       as: REDIS
 build:
   docker:
-    web: backend/Dockerfile
+    web: Dockerfile
 run:
   web: /start.sh
   worker:
     command:
-      - celery -A celery app/worker --concurrency=1 -l INFO --pidfile=
+      - celery -A app.celery_main worker --concurrency=2 -B -l INFO --pidfile=
     image: web
