@@ -28,7 +28,7 @@ async def make_transfers_balances_for_treasury(
         token_symbol: (
             await bitquery.get_eth_transfers(treasury.address)
             if token_symbol == "ETH"
-            else [_ async for _ in get_token_transfers(treasury.address, token_address)]
+            else await get_token_transfers(treasury.address, token_address)
         )
         for token_symbol, token_address in tokens
     }

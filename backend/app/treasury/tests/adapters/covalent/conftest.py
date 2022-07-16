@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from unittest import mock
 
 from dateutil.tz import UTC
 from dateutil.utils import today as today_in
@@ -23,6 +24,12 @@ class MockResponse:
     @staticmethod
     def json():
         return None
+
+
+def make_mock_response_with_json(json):
+    mock_response = mock.Mock(spec=Response)
+    mock_response.json.return_value = json
+    return mock_response
 
 
 async def return_mocked_resp(*_, **__):
