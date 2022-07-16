@@ -1,5 +1,5 @@
 import json
-from os import getenv
+import os
 from typing import Any, Generator, Optional
 
 import dateutil
@@ -10,30 +10,73 @@ from pytz import UTC
 from .... import db
 from ...models import Transfer
 
-CACHE_HASH_TRANSFERS = "covalent_transfers"
+# [XXX] We might want to have one Redis key per token.
+# The big hashmap is probably not playing well with expiry.
+CACHE_HASH_TRANSFERS = "covalent_transfer_items"
 CACHE_KEY_TEMPLATE_TRANSFERS = "{treasury_address}_{contract_address}_{chain_id}_{date}"
 
+KEY = os.getenv("COVALENT_KEY")
+TRANSFERS_V2_URL_TEMPLATE = (
+    "https://api.covalenthq.com/v1/{chain_id}/address/{treasury_address}/transfers_v2/"
+)
 
-async def _get_transfers_data(
+
+async def _get_transfer_items(
     treasury_address: str, contract_address: str, chain_id: int
-) -> dict[str, Any]:
-    async with AsyncClient(timeout=Timeout(10.0, read=60.0, connect=90.0)) as client:
-        resp = await client.get(
-            f"https://api.covalenthq.com/v1/{chain_id}/address/{treasury_address}"
-            + "/transfers_v2/?quote-currency=USD&format=JSON"
-            + f"&contract-address={contract_address}&key=ckey_{getenv('COVALENT_KEY')}"
-        )
-    resp.raise_for_status()
-    return resp.json()["data"]
+) -> Generator[dict[str, Any], None, None]:
+    page_number = 0
+    while True:
+        async with AsyncClient(
+            timeout=Timeout(10.0, read=60.0, connect=90.0)
+        ) as client:
+            resp = await client.get(
+                TRANSFERS_V2_URL_TEMPLATE.format(
+                    chain_id=chain_id, treasury_address=treasury_address
+                ),
+                params={
+                    "quote-currency": "USD",
+                    "format": "JSON",
+                    "contract-address": contract_address,
+                    "key": f"ckey_{KEY}",
+                    "page-number": page_number,
+                },
+            )
+        resp.raise_for_status()
+        data = resp.json()["data"]
+        for item in data["items"]:
+            yield item
+        if not data["pagination"]["has_more"]:
+            break
+        page_number += 1
 
 
 TYPE_SIGN = {"OUT": -1, "IN": 1}
 
 
+def _transfers_of_items(transfer_items: list[dict[str, Any]]):
+    for block_transaction in transfer_items:
+        block_date = dateutil.parser.parse(block_transaction["block_signed_at"])
+        for transfer in block_transaction["transfers"]:
+            delta = int(transfer["delta"])
+            decimals = int(transfer["contract_decimals"])
+            if decimals < 0:
+                logger = get_logger(__name__)
+                logger.error(
+                    "Covalent returned negative decimals on contract %s %s %s",
+                    transfer["contract_name"],
+                    transfer["contract_ticker_symbol"],
+                    transfer["contract_address"],
+                )
+            amount = (
+                TYPE_SIGN[transfer["transfer_type"]] * delta / 10**decimals
+            )  # [XXX] Check if decimals might be 0 or negative
+            yield Transfer(timestamp=block_date, amount=amount)
+
+
 async def get_token_transfers(
     treasury_address: str, contract_address: str, chain_id: Optional[int] = 1
-) -> Generator[Transfer, None, None]:
-    """Yields Transfer objects without balance, backwards in time
+) -> list[Transfer]:
+    """Returns a list of Transfer objects without balance, backwards in time
 
     Notes
     ---
@@ -54,12 +97,15 @@ async def get_token_transfers(
     )
 
     if db.hexists(CACHE_HASH_TRANSFERS, cache_key):
-        transfers_data = json.loads(db.hget(CACHE_HASH_TRANSFERS, cache_key))
+        transfer_items = json.loads(db.hget(CACHE_HASH_TRANSFERS, cache_key))
     else:
         try:
-            transfers_data = await _get_transfers_data(
-                treasury_address, contract_address, chain_id
-            )
+            transfer_items = [
+                _
+                async for _ in _get_transfer_items(
+                    treasury_address, contract_address, chain_id
+                )
+            ]
         except (
             HTTPStatusError,
             json.decoder.JSONDecodeError,
@@ -76,12 +122,6 @@ async def get_token_transfers(
             )
             raise
 
-        db.hset(CACHE_HASH_TRANSFERS, cache_key, json.dumps(transfers_data))
+        db.hset(CACHE_HASH_TRANSFERS, cache_key, json.dumps(transfer_items))
 
-    for block_transaction in transfers_data["items"]:
-        block_date = dateutil.parser.parse(block_transaction["block_signed_at"])
-        for transfer_item in block_transaction["transfers"]:
-            delta = int(transfer_item["delta"])
-            decimals = int(transfer_item["contract_decimals"])
-            amount = TYPE_SIGN[transfer_item["transfer_type"]] * delta / 10**decimals
-            yield Transfer(timestamp=block_date, amount=amount)
+    return list(_transfers_of_items(transfer_items))

@@ -13,17 +13,19 @@ from ..models import ERC20, Transfer, Treasury
 
 @pytest.fixture
 async def patch_get_token_transfers(monkeypatch: pytest.MonkeyPatch):
-    async def gen(*_):
-        yield Transfer(
-            timestamp=datetime.datetime(year=2030, month=1, day=1, tzinfo=UTC),
-            amount=1232,
-        )
-        yield Transfer(
-            timestamp=datetime.datetime(year=2022, month=1, day=1, tzinfo=UTC),
-            amount=1,
-        )
+    async def _implem(*_):
+        return [
+            Transfer(
+                timestamp=datetime.datetime(year=2030, month=1, day=1, tzinfo=UTC),
+                amount=1232,
+            ),
+            Transfer(
+                timestamp=datetime.datetime(year=2022, month=1, day=1, tzinfo=UTC),
+                amount=1,
+            ),
+        ]
 
-    monkeypatch.setattr(actions, "get_token_transfers", gen)
+    monkeypatch.setattr(actions, "get_token_transfers", _implem)
 
 
 @pytest.fixture
