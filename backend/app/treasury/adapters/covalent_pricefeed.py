@@ -2,7 +2,7 @@
 import datetime
 import json
 from os import getenv
-from typing import Any, TypeVar, Union
+from typing import Any, TypeVar
 
 import dateutil
 from celery.utils.log import get_logger
@@ -15,7 +15,7 @@ COVALENT_URI = "https://api.covalenthq.com/v1"
 CACHE_HASH_PRICES = "covalent_prices"
 CACHE_KEY_TEMPLATE_PRICES = "{symbol}_{start}_{end}"
 
-RawPrices = TypeVar("RawPrices", list[dict[str, Any]], [])
+RawPrices = TypeVar("RawPrices", list[dict[str, Any]], None)
 
 
 async def _get_pricing_data(
@@ -51,7 +51,7 @@ async def _get_pricing_data(
 
 async def get_token_hist_price_covalent(
     token_address: str, token_symbol: str
-) -> Union(list[Price], []):
+) -> list[Price]:
     end_date = dateutil.utils.today(dateutil.tz.UTC)
     start_date = end_date - datetime.timedelta(days=366)
 
