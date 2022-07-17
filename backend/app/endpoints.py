@@ -3,7 +3,7 @@ from dataclasses import asdict, dataclass
 from typing import Iterable, Literal, TypeVar, Union
 
 import dateutil
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, Path
 from numpy import NaN
 from pytz import UTC
 
@@ -123,12 +123,28 @@ async def get_portfolio(address: str, start=str):
     )
 
 
-@router.get("/backtest/spread/{address}/{start}/{token_to_divest_from}/{percentage}")
+@router.get(
+    "/backtest/spread/{address}/{start}/{token_to_divest_from}/{spread_token}/{percentage}"
+)
 async def backtest_spread(
-    address: str, start: str, token_to_divest_from: str, percentage: int
+    address: str,
+    start: str,
+    token_to_divest_from: str,
+    percentage: int = Path(0, ge=0, le=100),
+    spread_token: str = Path("USDC", regex="(?:(^USDC$)|(^ETH$))"),
 ):
-    assert 0 <= percentage <= 100
+    spread_tokens_metadatas = {
+        "USDC": {
+            "name": "USD Coin",
+            "address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+        },
+        "ETH": {
+            "name": "Ether",
+            "address": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        },
+    }
 
+    spread_token_metadata = spread_tokens_metadatas[spread_token]
     end_date = dateutil.utils.today(UTC) - datetime.timedelta(days=1)
     end = end_date.strftime("%Y-%m-%d")
 
@@ -140,9 +156,9 @@ async def backtest_spread(
                 start,
                 end,
                 token_to_divest_from,
-                spread_token_name="USD Coin",
-                spread_token_symbol="USDC",
-                spread_token_address="0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+                spread_token_name=spread_token_metadata["name"],
+                spread_token_symbol=spread_token,
+                spread_token_address=spread_token_metadata["address"],
                 spread_percentage=percentage,
             )
         ),
