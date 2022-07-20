@@ -58,7 +58,7 @@ In production, use a Redis instance as-a-service and grab its TLS url.
 Locally, you can run the services only with:
 
 ```sh
-docker compose up --profile services
+docker compose --profile services up
 ```
 
 The Redis instance should be listening on `localhost:6379`.
