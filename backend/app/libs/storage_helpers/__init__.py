@@ -6,5 +6,9 @@ from .storage_helpers import (
     store_asset_hist_performance,
     store_token_whitelist,
 )
-from .tokenlists import maybe_populate_whitelist, store_and_get_whitelists
+from .tokenlists import (
+    maybe_populate_whitelist,
+    store_and_get_covalent_pairs_whitelist,
+    store_and_get_tokenlist_whitelist,
+)
 from .treasury_cacher import get_and_store_treasury_list

@@ -1,4 +1,4 @@
-from asyncio import run
+from asyncio import gather, run
 from datetime import datetime, timedelta
 from json import dumps
 
@@ -17,7 +17,8 @@ from .. import price_stats
 from ..storage_helpers import (
     get_and_store_treasury_list,
     retrieve_treasuries_metadata,
-    store_and_get_whitelists,
+    store_and_get_covalent_pairs_whitelist,
+    store_and_get_tokenlist_whitelist,
     store_asset_correlations,
     store_asset_hist_balance,
     store_asset_hist_performance,
@@ -125,10 +126,17 @@ def reload_treasuries_stats():
             pipe.execute()
 
 
+async def gather_all_whitelists() -> tuple[list[str]]:
+    return await gather(
+        store_and_get_tokenlist_whitelist(db),
+        store_and_get_covalent_pairs_whitelist(db),
+    )
+
+
 @celery_app.task(name="tasks.reload_whitelist")
 def reload_whitelist():
     try:
-        whitelist = run(store_and_get_whitelists(db))
+        whitelist = run(gather_all_whitelists())
         assert whitelist
     except AssertionError:
         logger = get_task_logger(__name__)
