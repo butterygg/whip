@@ -10,8 +10,6 @@ from pytz import UTC
 from .... import db
 from ...models import Transfer
 
-# [XXX] We might want to have one Redis key per token.
-# The big hashmap is probably not playing well with expiry.
 CACHE_HASH_TRANSFERS = "covalent_transfer_items"
 CACHE_KEY_TEMPLATE_TRANSFERS = "{treasury_address}_{contract_address}_{chain_id}_{date}"
 
@@ -67,9 +65,7 @@ def _transfers_of_items(transfer_items: list[dict[str, Any]]):
                     transfer["contract_ticker_symbol"],
                     transfer["contract_address"],
                 )
-            amount = (
-                TYPE_SIGN[transfer["transfer_type"]] * delta / 10**decimals
-            )  # [XXX] Check if decimals might be 0 or negative
+            amount = TYPE_SIGN[transfer["transfer_type"]] * delta / 10**decimals
             yield Transfer(timestamp=block_date, amount=amount)
 
 

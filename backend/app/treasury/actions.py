@@ -22,9 +22,7 @@ async def make_transfers_balances_for_treasury(
     tokens: set[tuple[str, str]] = token_symbols_and_addresses | (
         {("ETH", "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")} if add_eth else set()
     )
-    # [XXX] Can this be sparse? If yes, which cases? Should we consider the balances null?
-    # (think coin minted):
-    maybe_transfers = {
+    transfers = {
         token_symbol: (
             await bitquery.get_eth_transfers(treasury.address)
             if token_symbol == "ETH"
@@ -32,12 +30,10 @@ async def make_transfers_balances_for_treasury(
         )
         for token_symbol, token_address in tokens
     }
-
     return BalancesAtTransfers.from_transfer_and_end_balance_dict(
         {
             symbol: (transfers, treasury.get_asset(symbol).balance)
-            for symbol, transfers in maybe_transfers.items()
-            if transfers
+            for symbol, transfers in transfers.items()
         }
     )
 
@@ -87,7 +83,6 @@ async def make_balances_from_treasury_and_prices(
     def fill_asset_hist_balance(
         symbol: str, price_series: pd.Series
     ) -> Optional[pd.DataFrame]:
-        # [XXX] When should this happen? See maybe_transfers. If possible, this should not happen:
         if symbol not in transfers.balances:
             return None
         return pd_inter_calc.make_daily_hist_balance(

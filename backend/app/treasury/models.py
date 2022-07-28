@@ -13,7 +13,7 @@ class Price:
 @dataclass
 class Transfer:
     timestamp: datetime.datetime
-    amount: float  # transfer amount # [XXX] usd or token?
+    amount: float  # amount of tokens transferred
 
 
 @dataclass
