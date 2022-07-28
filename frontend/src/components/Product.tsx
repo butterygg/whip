@@ -50,7 +50,7 @@ export default function Product({
     const resp = await fetch(
       `/api/backtest/spread/${address}/${startDate
         .toISOString()
-        .slice(0, 10)}/${selectedAsset}/${percentage}`
+        .slice(0, 10)}/${selectedAsset}/USDC/${percentage}`
     );
     if (!resp.ok)
       throw new Error(`Backtest fetch failed with status: ${resp.statusText}`);
