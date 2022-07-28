@@ -130,8 +130,8 @@ async def backtest_spread(
     address: str,
     start: str,
     token_to_divest_from: str,
-    percentage: int = Path(0, ge=0, le=100),
     spread_token: str = Path("USDC", regex="(?:(^USDC$)|(^ETH$))"),
+    percentage: int = Path(0, ge=0, le=100),
 ):
     spread_tokens_metadatas = {
         "USDC": {
