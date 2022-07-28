@@ -2,6 +2,7 @@ from json import loads
 from json.decoder import JSONDecodeError
 
 import pytest
+from fakeredis import FakeRedis
 from httpx import AsyncClient
 
 from backend.app.libs.storage_helpers.tokenlists import (
@@ -12,7 +13,6 @@ from backend.app.libs.storage_helpers.tokenlists import (
 
 from .conftest import (
     HTTPStatusError,
-    MockProvider,
     raise_http_status_error_404,
     raise_http_status_error_501,
 )
@@ -46,10 +46,10 @@ async def mock_get_tokenlist(*_):
 async def test_get_tokenlists_success(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(AsyncClient, "get", mock_get_tokenlist)
 
-    mocked_provider = MockProvider()
+    mocked_provider = FakeRedis(decode_responses=True)
 
     await store_and_get_tokenlist_whitelist(mocked_provider)
-    assert mocked_provider.db_payload["whitelist"] == {
+    assert mocked_provider.smembers("whitelist") == {
         "0x6d6f636b5f31",
         "0x6d6f636b5f32",
         "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",  # Native ETH should always be whitelisted

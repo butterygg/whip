@@ -3,6 +3,7 @@ from json.decoder import JSONDecodeError
 from unittest import mock
 
 import pytest
+from fakeredis import FakeRedis
 from httpx import AsyncClient
 
 from backend.app.libs.storage_helpers.tokenlists import (
@@ -14,7 +15,6 @@ from backend.app.libs.storage_helpers.tokenlists import (
 
 from .conftest import (
     HTTPStatusError,
-    MockProvider,
     raise_http_status_error_404,
     raise_http_status_error_501,
 )
@@ -56,10 +56,10 @@ async def mock_get_tokenlist(*_, **__):
 @pytest.mark.asyncio
 async def test_get_covalent_pair_list_success(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(AsyncClient, "get", mock_get_tokenlist)
-    mocked_provider = MockProvider()
+    mocked_provider = FakeRedis(decode_responses=True)
 
     await store_and_get_covalent_pairs_whitelist(mocked_provider)
-    assert mocked_provider.db_payload["whitelist"] == {
+    assert mocked_provider.smembers("whitelist") == {
         "0x6d6f636b5f636f76616c656e745f706169725f31",
         "0x6d6f636b5f636f76616c656e745f706169725f32",
     }
