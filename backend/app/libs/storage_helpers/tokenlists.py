@@ -9,8 +9,8 @@ from httpx import AsyncClient, HTTPStatusError, RequestError, Timeout
 
 from .storage_helpers import retrieve_token_whitelist, store_token_whitelist
 
-KEY = os.getenv("COVALENT_KEY")
-COVALENT_POOLS = "https://api.covalenthq.com/v1/{chain_id}/xy=k/{protocol}/pools/"
+COVALENT_KEY = os.getenv("COVALENT_KEY")
+COVALENT_POOLS_URL = "https://api.covalenthq.com/v1/{chain_id}/xy=k/{protocol}/pools/"
 
 
 async def _get_covalent_pair_list(
@@ -22,13 +22,13 @@ async def _get_covalent_pair_list(
             timeout=Timeout(10.0, read=60.0, connect=90.0)
         ) as client:
             resp = await client.get(
-                COVALENT_POOLS.format(chain_id=chain_id, protocol=protocol),
+                COVALENT_POOLS_URL.format(chain_id=chain_id, protocol=protocol),
                 params={
                     "quote-currency": "USD",
                     "format": "JSON",
                     "page-number": page_number,
                     "page-size": 250,
-                    "key": f"ckey_{KEY}",
+                    "key": f"ckey_{COVALENT_KEY}",
                 },
             )
             resp.raise_for_status()
@@ -48,12 +48,12 @@ async def get_covalent_pair_list(protocol: str, chain_id=1) -> list[str]:
 
 
 async def get_uniswap_v2_pairs_covalent() -> tuple[str, list[str]]:
-    datasource = COVALENT_POOLS.format(chain_id=1, protocol="uniswap_v2")
+    datasource = COVALENT_POOLS_URL.format(chain_id=1, protocol="uniswap_v2")
     return (datasource, await get_covalent_pair_list("uniswap_v2"))
 
 
 async def get_sushiswap_pairs_covalent() -> tuple[str, list[str]]:
-    datasource = COVALENT_POOLS.format(chain_id=1, protocol="sushiswap")
+    datasource = COVALENT_POOLS_URL.format(chain_id=1, protocol="sushiswap")
     return (datasource, await get_covalent_pair_list("sushiswap"))
 
 
@@ -103,7 +103,7 @@ async def get_whitelists_from_apis(_getters: list[Coroutine]) -> list[str]:
     )
 
 
-async def get_all_pairs_covalent() -> list[str]:
+async def get_all_covalent_pairs() -> list[str]:
     return await get_whitelists_from_apis(
         [
             get_uniswap_v2_pairs_covalent,
@@ -126,16 +126,16 @@ async def store_and_get_covalent_pairs_whitelist(
     provider: Union[redis.Redis, redis.client.Pipeline]
 ) -> list[str]:
     try:
-        latest_whitelist = await get_all_pairs_covalent()
+        latest_whitelist = await get_all_covalent_pairs()
     except (HTTPStatusError, RequestError, JSONDecodeError, KeyError) as error:
         logger = get_task_logger(__name__)
         if error.__class__ in [HTTPStatusError, RequestError]:
             logger.error(
-                "error receiving uni_v2 pairs from Covalent API", exc_info=error
+                "error receiving pairs from Covalent API", exc_info=error
             )
             return []
         logger.error(
-            "error processing uni_v2 pairs from Covalent API repsonse", exc_info=error
+            "error processing pairs from Covalent API repsonse", exc_info=error
         )
         return []
 
