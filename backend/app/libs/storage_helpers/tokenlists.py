@@ -130,9 +130,7 @@ async def store_and_get_covalent_pairs_whitelist(
     except (HTTPStatusError, RequestError, JSONDecodeError, KeyError) as error:
         logger = get_task_logger(__name__)
         if error.__class__ in [HTTPStatusError, RequestError]:
-            logger.error(
-                "error receiving pairs from Covalent API", exc_info=error
-            )
+            logger.error("error receiving pairs from Covalent API", exc_info=error)
             return []
         logger.error(
             "error processing pairs from Covalent API repsonse", exc_info=error
