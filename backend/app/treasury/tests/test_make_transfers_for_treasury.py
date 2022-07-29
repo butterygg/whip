@@ -64,20 +64,10 @@ async def test_make_transfers_for_treasury(
                 balance=333,
                 balance_usd=3,
             ),
-            ERC20(
-                token_name="zzz",
-                token_symbol="ZZZ",
-                token_address="0xzzz",
-                balance=666,
-                balance_usd=4,
-            ),
         ],
     )
-    token_symbols_and_addresses = {("ABC", "0xabc"), ("DEF", "0xdef")}
 
-    balances_at_transfers = await actions.make_transfers_balances_for_treasury(
-        treasury, token_symbols_and_addresses, add_eth=False
-    )
+    balances_at_transfers = await actions.make_transfers_balances_for_treasury(treasury)
 
     assert balances_at_transfers == "balances_at_transfers_mock"
     assert patch_balances_at_transfers_constructor.call_args[0][0] == (
