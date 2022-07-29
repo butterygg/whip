@@ -10,31 +10,35 @@ from ..libs.storage_helpers import maybe_populate_whitelist
 from .adapters import bitquery
 from .adapters.covalent import get_token_transfers, get_treasury
 from .adapters.covalent_pricefeed import get_token_hist_price_covalent
-from .models import Balances, BalancesAtTransfers, Prices, TotalBalance, Treasury
+from .models import (
+    ERC20,
+    Balances,
+    BalancesAtTransfers,
+    Prices,
+    TotalBalance,
+    Transfer,
+    Treasury,
+)
 
 
 async def make_transfers_balances_for_treasury(
     treasury: Treasury,
-    token_symbols_and_addresses: set[tuple[str, str]],
-    add_eth=True,
 ) -> BalancesAtTransfers:
     "Returns series of balances defined at times of assets transfers"
-    tokens: set[tuple[str, str]] = token_symbols_and_addresses | (
-        {("ETH", "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")} if add_eth else set()
-    )
-    transfers = {
-        token_symbol: (
+
+    async def get_transfers(asset: ERC20) -> list[Transfer]:
+        return (
             await bitquery.get_eth_transfers(treasury.address)
-            if token_symbol == "ETH"
-            else await get_token_transfers(treasury.address, token_address)
+            if asset.token_symbol == "ETH"
+            else await get_token_transfers(treasury.address, asset.token_address)
         )
-        for token_symbol, token_address in tokens
+
+    transfers_and_end_balance = {
+        asset.token_symbol: (await get_transfers(asset), asset.balance)
+        for asset in treasury.assets
     }
     return BalancesAtTransfers.from_transfer_and_end_balance_dict(
-        {
-            symbol: (transfers, treasury.get_asset(symbol).balance)
-            for symbol, transfers in transfers.items()
-        }
+        transfers_and_end_balance
     )
 
 
@@ -71,22 +75,17 @@ async def make_prices_from_tokens(
     )
 
 
-async def make_balances_from_treasury_and_prices(
-    treasury: Treasury,
-    token_symbols_and_addresses: set[tuple[str, str]],
+async def make_balances_from_transfers_and_prices(
+    balances_at_transfers: BalancesAtTransfers,
     prices: Prices,
 ) -> Balances:
-    transfers = await make_transfers_balances_for_treasury(
-        treasury, token_symbols_and_addresses
-    )
-
     def fill_asset_hist_balance(
         symbol: str, price_series: pd.Series
     ) -> Optional[pd.DataFrame]:
-        if symbol not in transfers.balances:
+        if symbol not in balances_at_transfers.balances:
             return None
         return pd_inter_calc.make_daily_hist_balance(
-            symbol, transfers.balances[symbol], price_series
+            symbol, balances_at_transfers.balances[symbol], price_series
         )
 
     maybe_asset_hist_balance = {
@@ -144,14 +143,14 @@ async def build_treasury_with_assets(
 ) -> tuple[Treasury, Prices, Balances, TotalBalance]:
     treasury = await make_treasury_from_address(treasury_address, chain_id)
 
-    token_symbols_and_addresses: set[tuple[str, str]] = {
-        (asset.token_symbol, asset.token_address) for asset in treasury.assets
-    }
+    prices = await make_prices_from_tokens(
+        {(asset.token_symbol, asset.token_address) for asset in treasury.assets}
+    )
 
-    prices = await make_prices_from_tokens(token_symbols_and_addresses)
+    balances_at_transfers = await make_transfers_balances_for_treasury(treasury)
 
-    balances = await make_balances_from_treasury_and_prices(
-        treasury, token_symbols_and_addresses, prices
+    balances = await make_balances_from_transfers_and_prices(
+        balances_at_transfers, prices
     )
 
     treasury = update_treasury_assets_from_whitelist(

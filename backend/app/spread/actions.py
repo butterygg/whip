@@ -6,9 +6,10 @@ from ..treasury import (
     Prices,
     TotalBalance,
     Treasury,
-    make_balances_from_treasury_and_prices,
+    make_balances_from_transfers_and_prices,
     make_prices_from_tokens,
     make_total_balance_from_balances,
+    make_transfers_balances_for_treasury,
     make_treasury_from_address,
     update_treasury_assets_from_whitelist,
     update_treasury_assets_risk_contributions,
@@ -102,17 +103,17 @@ async def build_spread_treasury_with_assets(
 
     assert token_to_divest_from in (asset.token_symbol for asset in treasury.assets)
 
-    token_symbols_and_addresses: set[tuple[str, str]] = {
+    token_symbols_and_addresses_with_spread_token: set[tuple[str, str]] = {
         (asset.token_symbol, asset.token_address) for asset in treasury.assets
-    }
-    tokens_sa_with_spread_token = token_symbols_and_addresses | {
-        (spread_token_symbol, spread_token_address)
-    }
+    } | {(spread_token_symbol, spread_token_address)}
+    prices = await make_prices_from_tokens(
+        token_symbols_and_addresses_with_spread_token
+    )
 
-    prices = await make_prices_from_tokens(tokens_sa_with_spread_token)
+    balances_at_transfers = await make_transfers_balances_for_treasury(treasury)
 
-    balances = await make_balances_from_treasury_and_prices(
-        treasury, token_symbols_and_addresses, prices
+    balances = await make_balances_from_transfers_and_prices(
+        balances_at_transfers, prices
     )
 
     treasury = update_treasury_assets_from_whitelist(
