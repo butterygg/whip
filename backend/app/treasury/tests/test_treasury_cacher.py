@@ -4,12 +4,8 @@ from fakeredis import FakeRedis
 from httpx import Client
 from pytest import MonkeyPatch, mark, raises
 
-from backend.app.libs.storage_helpers.storage_helpers import (
-    retrieve_treasuries_metadata,
-    store_treasuries_metadata,
-)
-from backend.app.libs.storage_helpers.treasury_cacher import _get_treasury_list
-
+from ..adapters.cryptostats import _get_treasury_list
+from ..adapters.redis import retrieve_treasuries_metadata, store_treasuries_metadata
 from .conftest import (
     HTTPStatusError,
     raise_http_status_error_404,

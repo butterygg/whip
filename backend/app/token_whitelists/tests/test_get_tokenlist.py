@@ -5,12 +5,8 @@ import pytest
 from fakeredis import FakeRedis
 from httpx import AsyncClient
 
-from backend.app.libs.storage_helpers.tokenlists import (
-    get_tokenlists,
-    maybe_populate_whitelist,
-    store_and_get_tokenlist_whitelist,
-)
-
+from .. import maybe_populate_whitelist, store_and_get_tokenlist_whitelist, whitelists
+from ..adapters.tokenlists import get_processed_tokenlists
 from .conftest import (
     HTTPStatusError,
     raise_http_status_error_404,
@@ -100,7 +96,7 @@ async def test_get_tokenlists_bad_resp_json(monkeypatch: pytest.MonkeyPatch, jso
     monkeypatch.setattr(AsyncClient, "get", async_return)
     monkeypatch.setattr(MockResponse, "json", json_resp)
     with pytest.raises(KeyError):
-        await get_tokenlists(url)
+        await get_processed_tokenlists(url)
 
 
 @pytest.mark.asyncio
@@ -108,7 +104,8 @@ async def test_maybe_populate_whitelist_success_preprop(
     monkeypatch: pytest.MonkeyPatch,
 ):
     monkeypatch.setattr(
-        "backend.app.libs.storage_helpers.tokenlists.retrieve_token_whitelist",
+        whitelists,
+        "retrieve_token_whitelist",
         lambda _: ["0x6d6f636b5f746f6b656e5f31", "0x6d6f636b5f746f6b656e5f32"],
         raising=True,
     )
@@ -127,7 +124,7 @@ async def test_get_tokenlists_resp_err_404(monkeypatch: pytest.MonkeyPatch):
 
     url = "https://tokens.coingecko.com/uniswap/all.json"
     with pytest.raises(HTTPStatusError) as error:
-        await get_tokenlists(url)
+        await get_processed_tokenlists(url)
 
         assert "mocked http status error" in str(error.value)
 
@@ -140,7 +137,7 @@ async def test_get_tokenlists_resp_err_5xx(monkeypatch: pytest.MonkeyPatch):
 
     url = "https://tokens.coingecko.com/uniswap/all.json"
     with pytest.raises(HTTPStatusError) as error:
-        await get_tokenlists(url)
+        await get_processed_tokenlists(url)
 
         assert "mocked http status error" in str(error.value)
 
@@ -152,4 +149,4 @@ async def test_get_tokenlists_json_err(monkeypatch: pytest.MonkeyPatch):
 
     url = "https://tokens.coingecko.com/uniswap/all.json"
     with pytest.raises(JSONDecodeError):
-        await get_tokenlists(url)
+        await get_processed_tokenlists(url)
