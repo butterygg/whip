@@ -5,13 +5,14 @@ import datetime
 from unittest.mock import Mock
 
 import pytest
+import pytest_asyncio
 from pytz import UTC
 
 from .. import actions
 from ..models import ERC20, Transfer, Treasury
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def patch_get_token_transfers(monkeypatch: pytest.MonkeyPatch):
     async def _implem(*_):
         return [
@@ -45,7 +46,6 @@ def patch_balances_at_transfers_constructor(monkeypatch: pytest.MonkeyPatch):
 async def test_make_transfers_for_treasury(
     patch_get_token_transfers, patch_balances_at_transfers_constructor
 ):
-    await patch_get_token_transfers
 
     treasury = Treasury(
         address="0x0",

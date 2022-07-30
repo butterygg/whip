@@ -3,9 +3,6 @@ from typing import Union
 
 from celery.utils.log import get_task_logger
 from httpx import Client, HTTPStatusError, RequestError, Timeout
-from redis import Redis
-
-from .storage_helpers import store_treasuries_metadata
 
 
 def _get_treasury_list() -> list[Union[str, None]]:
@@ -38,7 +35,3 @@ def get_treasury_list() -> list[Union[str, None]]:
             return []
         logger.error("error processing CryptoStats API repsonse", exc_info=error)
         return []
-
-
-def get_and_store_treasury_list(provider: Redis):
-    store_treasuries_metadata(provider, get_treasury_list())

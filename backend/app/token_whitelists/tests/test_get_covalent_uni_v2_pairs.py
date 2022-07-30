@@ -6,13 +6,9 @@ import pytest
 from fakeredis import FakeRedis
 from httpx import AsyncClient
 
-from backend.app.libs.storage_helpers.tokenlists import (
-    get_covalent_pair_list,
-    get_uniswap_v2_pairs_covalent,
-    get_whitelists_from_apis,
-    store_and_get_covalent_pairs_whitelist,
-)
-
+from .. import store_and_get_covalent_pairs_whitelist
+from ..adapters.covalent import get_covalent_pair_list, get_uniswap_v2_pairs_covalent
+from ..adapters.utils import get_whitelists_from_apis
 from .conftest import (
     HTTPStatusError,
     raise_http_status_error_404,

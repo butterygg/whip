@@ -8,4 +8,9 @@ from .actions import (
     update_treasury_assets_from_whitelist,
     update_treasury_assets_risk_contributions,
 )
+from .adapters import (
+    get_treasury_list,
+    retrieve_treasuries_metadata,
+    store_treasuries_metadata,
+)
 from .models import ERC20, Balances, Prices, TotalBalance, Treasury
