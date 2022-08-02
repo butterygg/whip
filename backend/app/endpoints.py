@@ -56,7 +56,7 @@ class Portfolio:
 
         assets = {
             a.token_symbol: PortfolioAsset(
-                allocation=a.balance / treasury.usd_total,
+                allocation=a.balance_usd / treasury.usd_total,
                 metrics={}
                 if histprices[a.token_symbol][["std_dev", "returns"]].empty
                 else loads(

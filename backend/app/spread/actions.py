@@ -14,14 +14,15 @@ from ..treasury import (
     update_treasury_assets_from_whitelist,
     update_treasury_assets_risk_contributions,
 )
-from .helpers import make_zeroes
+from .models import SpreadTokenSymbol
 
 
 def update_balances_with_spread(
     balances: Balances,
     token_to_divest_from: str,
-    spread_token_symbol: str,
+    spread_token_symbol: SpreadTokenSymbol,
     spread_percentage: int,
+    hist_spread_price: pd.Series,
     start: str,
     end: str,
 ) -> Balances:
@@ -30,25 +31,45 @@ def update_balances_with_spread(
     if token_to_divest_from == spread_token_symbol:
         return resized_balances
 
-    zeroes_series = make_zeroes(start, end)
+    divest_token_hist_balances = balances.usd_balances[token_to_divest_from]
 
     try:
-        start_divest_balance = balances.balances[token_to_divest_from].loc[start]
+        divest_token_start_usd_balance = divest_token_hist_balances.loc[start]
     except KeyError:
-        spread_additional_token_balance: pd.Series = zeroes_series
-    else:
-        spread_additional_token_balance: pd.Series = (
-            zeroes_series + start_divest_balance * spread_percentage / 100.0
-        )
-        resized_balances.balances[token_to_divest_from] *= (
+        divest_token_start_usd_balance = 0
+
+    # Do not resize divest token balance if no swap was possible.
+    if divest_token_start_usd_balance > 0:
+        resized_balances.usd_balances[token_to_divest_from] *= (
             100 - spread_percentage
         ) / 100.0
 
-    if spread_token_symbol in resized_balances.balances:
-        spread_additional_token_balance = spread_additional_token_balance.add(
-            resized_balances.balances[spread_token_symbol], fill_value=0
+    # USD balance to add to spread token at start of period:
+    spread_token_new_usd_balance_at_start = (
+        divest_token_start_usd_balance * spread_percentage / 100
+    )
+    # Token balance at start (divide by quote on that day):
+    spread_token_new_balance_at_start = (
+        spread_token_new_usd_balance_at_start / hist_spread_price.loc[start]
+    )
+    # USD balance to add to spread token (scale balance-of-1 USD series by
+    # the balance-at-start scalar):
+    # Note on "balance-of-1": the USD balance series for a portfolio
+    # holding a spread token balance of exactly 1 is the same as historical
+    # price series.
+    spread_token_new_usd_balance = (
+        hist_spread_price.loc[start:end] * spread_token_new_balance_at_start
+    )
+
+    # Define new spread token balance by adding the new USD balance on top of
+    # the existing one.
+    resized_balances.usd_balances[spread_token_symbol] = (
+        spread_token_new_usd_balance.add(
+            resized_balances.usd_balances[spread_token_symbol], fill_value=0
         )
-    resized_balances.balances[spread_token_symbol] = spread_additional_token_balance
+        if spread_token_symbol in resized_balances.usd_balances
+        else spread_token_new_usd_balance
+    )
 
     return resized_balances
 
@@ -58,12 +79,11 @@ def update_treasury_assets_with_spread_balances(
     balances: Balances,
     end: str,
     spread_token_name: str,
-    spread_token_symbol: str,
+    spread_token_symbol: SpreadTokenSymbol,
     spread_token_address: str,
-    spread_token_usd_quote: float,
 ) -> Treasury:
     for asset in treasury.assets:
-        asset.balance_usd = balances.balances[asset.token_symbol].loc[end]
+        asset.balance_usd = balances.usd_balances[asset.token_symbol].loc[end]
     try:
         treasury.get_asset(spread_token_symbol)
     except StopIteration:
@@ -72,9 +92,8 @@ def update_treasury_assets_with_spread_balances(
                 token_name=spread_token_name,
                 token_symbol=spread_token_symbol,
                 token_address=spread_token_address,
-                balance_usd=balances.balances[spread_token_symbol].loc[end],
-                balance=balances.balances[spread_token_symbol].loc[end]
-                / spread_token_usd_quote,
+                balance_usd=balances.usd_balances[spread_token_symbol].loc[end],
+                balance=0,  # We don't care about balance now.
             )
         )
     return treasury
@@ -95,7 +114,7 @@ async def build_spread_treasury_with_assets(
     end: str,
     token_to_divest_from: str,
     spread_token_name: str,
-    spread_token_symbol: str,
+    spread_token_symbol: SpreadTokenSymbol,
     spread_token_address: str,
     spread_percentage: int,
 ) -> tuple[Treasury, Prices, Balances, TotalBalance]:
@@ -126,10 +145,10 @@ async def build_spread_treasury_with_assets(
         token_to_divest_from,
         spread_token_symbol,
         spread_percentage,
+        prices.prices[spread_token_symbol]["price"],
         start,
         end,
     )
-    spread_token_usd_quote = get_usd_quote(spread_token_symbol, end)
     treasury = update_treasury_assets_with_spread_balances(
         treasury,
         balances,
@@ -137,7 +156,6 @@ async def build_spread_treasury_with_assets(
         spread_token_name,
         spread_token_symbol,
         spread_token_address,
-        spread_token_usd_quote,
     )
 
     total_balance = make_total_balance_from_balances(balances)
