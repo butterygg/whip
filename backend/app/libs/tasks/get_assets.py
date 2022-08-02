@@ -8,7 +8,7 @@ from celery.utils.log import get_task_logger
 from dateutil.tz import UTC
 from dateutil.utils import today
 from dotenv import load_dotenv
-from httpx import ReadTimeout
+from httpx import HTTPStatusError, ReadTimeout
 
 from ... import db
 from ...celery_main import app as celery_app
@@ -88,9 +88,10 @@ def reload_treasuries_stats():
                     treasury_metadata[0],
                 )
                 continue
-            except ReadTimeout:
+            except (ReadTimeout, HTTPStatusError):
+                error_msg = "error receiving a covalent response for %s, continuing"
                 logger.error(
-                    "error receiving a covalent portfolio_v2 response for %s, continuing",
+                    error_msg,
                     treasury_metadata[0],
                 )
                 continue
