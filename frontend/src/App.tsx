@@ -7,7 +7,7 @@ import { AssetsBreakdown, Kpis } from "./types";
 import { getTodayMidnight, deltaDate } from "./dateUtils";
 import { SimulationReactContext } from "./simulationContext";
 import AssetsDisplay from "./components/AssetsDisplay";
-import Product from "./components/Product";
+import SpreadProduct from "./components/Spread";
 import KpisDisplay from "./components/KpisDisplay";
 import Chart from "./components/Chart";
 
@@ -18,20 +18,7 @@ const PRODUCTS = [
     description: "diversification · stables",
     tokens: ["USDC"],
     logo: logo,
-  },
-  {
-    name: "Range Tokens",
-    provider: "UMA",
-    description: "debt-based funding",
-    tokens: ["yUSD"],
-    logo: logo,
-  },
-  {
-    name: "Squeeth-Crab",
-    provider: "Opyn",
-    description: "hedging · eth",
-    tokens: ["oSQTH"],
-    logo: logo,
+    spreadToken: "USDC",
   },
   {
     name: "Spread",
@@ -39,6 +26,7 @@ const PRODUCTS = [
     description: "diversification · ETH",
     tokens: ["ETH"],
     logo: logo,
+    spreadToken: "ETH",
   },
 ];
 
@@ -212,7 +200,7 @@ function App() {
             {PRODUCTS.map(
               (props, index) =>
                 (openedProduct === undefined || index === openedProduct) && (
-                  <Product
+                  <SpreadProduct
                     key={index}
                     assets={Object.keys(baseAssets)}
                     selectedAsset={selectedAsset}
@@ -221,7 +209,7 @@ function App() {
                     opened={index === openedProduct}
                     previewIsOn={newAssets !== undefined}
                     toggle={() => {
-                      if (index === 0 && typeof baseKpis !== "undefined")
+                      typeof baseKpis !== "undefined" &&
                         setOpenedProduct(
                           index === openedProduct ? undefined : index
                         );

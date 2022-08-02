@@ -10,11 +10,26 @@ type ProductDescription = {
   tokens: string[];
   logo: string;
 };
+type SpreadProductProps = {
+  spreadToken: string;
+  assets: string[];
+  selectedAsset: string | undefined;
+  setSelectedAsset: (arg0: string | undefined) => void;
+  swappedAmount: number | undefined;
+  opened: boolean;
+  previewIsOn: boolean;
+  toggle: () => void;
+  previewNewKpis: (arg0: Kpis) => void;
+  previewNewAssets: (arg0: AssetsBreakdown) => void;
+  previewNewChartData: (arg0: Record<string, number>) => void;
+  resetPreview: () => void;
+};
 
-export default function Product({
+export default function SpreadProduct({
   name,
   provider,
   description,
+  spreadToken,
   tokens,
   assets,
   selectedAsset,
@@ -27,19 +42,7 @@ export default function Product({
   previewNewAssets,
   previewNewChartData,
   resetPreview,
-}: ProductDescription & {
-  assets: string[];
-  selectedAsset: string | undefined;
-  setSelectedAsset: (arg0: string | undefined) => void;
-  swappedAmount: number | undefined;
-  opened: boolean;
-  previewIsOn: boolean;
-  toggle: () => void;
-  previewNewKpis: (arg0: Kpis) => void;
-  previewNewAssets: (arg0: AssetsBreakdown) => void;
-  previewNewChartData: (arg0: Record<string, number>) => void;
-  resetPreview: () => void;
-}) {
+}: ProductDescription & SpreadProductProps) {
   const [percentage, setPercentage] = useState(20);
   const { address, startDate } = useContext(SimulationReactContext);
 
@@ -50,7 +53,7 @@ export default function Product({
     const resp = await fetch(
       `/api/backtest/spread/${address}/${startDate
         .toISOString()
-        .slice(0, 10)}/${selectedAsset}/USDC/${percentage}`
+        .slice(0, 10)}/${selectedAsset}/${spreadToken}/${percentage}`
     );
     if (!resp.ok)
       throw new Error(`Backtest fetch failed with status: ${resp.statusText}`);
@@ -104,7 +107,9 @@ export default function Product({
       {opened && (
         <div className="p-4 space-y-2 text-xl font-semibold bg-biscuit bg-opacity-20">
           <div className="p-4 space-y-2">
-            <h3 className="font-light">You swap</h3>
+            <h3 className="font-light">
+              You swap for {spreadToken} on {startDate.toDateString()}
+            </h3>
             <div className="flex items-center justify-between text-l">
               <span>
                 <select
@@ -158,16 +163,6 @@ export default function Product({
                   />
                 </span>
               </div>
-              {/* <div className="flex items-center justify-between">
-              <span className="uppercase">Value{"\u00A0"}$</span>
-              <span>
-                <input
-                  className="p-2 text-right bg-[#ddd]"
-                  disabled={true}
-                  value={"$12,000,000"}
-                />
-              </span>
-            </div> */}
             </div>
           )}
           <div className="p-4 space-y-2">
