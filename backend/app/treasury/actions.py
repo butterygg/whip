@@ -94,7 +94,7 @@ async def make_balances_from_transfers_and_prices(
     }
 
     return Balances(
-        balances={
+        usd_balances={
             symbol: asset_hist_balance
             for symbol, asset_hist_balance in maybe_asset_hist_balance.items()
             if asset_hist_balance is not None
@@ -114,7 +114,7 @@ def update_treasury_assets_from_whitelist(
 def make_total_balance_from_balances(balances: Balances) -> TotalBalance:
     hist_total_balance: pd.Series = reduce(
         lambda acc, item: acc.add(item, fill_value=0),
-        balances.balances.values(),
+        balances.usd_balances.values(),
     )
     return TotalBalance(
         balance=price_stats.make_returns_df(hist_total_balance, "balance")

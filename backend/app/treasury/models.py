@@ -88,16 +88,16 @@ class Prices:
 
 @dataclass
 class Balances:
-    balances: dict[str, pd.Series]
+    usd_balances: dict[str, pd.Series]
 
     def get_existing_token_symbols(self) -> set[str]:
-        return {*self.balances.keys()}
+        return {*self.usd_balances.keys()}
 
     def copy(self):
         return Balances(
-            balances={
+            usd_balances={
                 token_symbol: balance_series.copy(deep=True)
-                for token_symbol, balance_series in self.balances.items()
+                for token_symbol, balance_series in self.usd_balances.items()
             }
         )
 
