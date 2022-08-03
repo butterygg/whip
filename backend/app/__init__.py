@@ -15,5 +15,6 @@ else:
 if "SENTRY_DSN" in os.environ:
     sentry_sdk.init(
         os.environ["SENTRY_DSN"],
+        environment=os.getenv("HEROKU_APP_NAME", "localhost"),
         traces_sample_rate=1.0,
     )
