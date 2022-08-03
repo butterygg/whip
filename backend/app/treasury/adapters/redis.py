@@ -20,7 +20,7 @@ def store_treasuries_metadata(
 def retrieve_treasuries_metadata(
     provider: Union[redis.Redis, redis.client.Pipeline]
 ) -> set[tuple[str, int]]:
-    treasuries = [
+    treasuries: list[tuple[str, int]] = [
         tuple(json.loads(t).values()) for t in provider.smembers("treasuries")
     ]
     return set(treasuries)

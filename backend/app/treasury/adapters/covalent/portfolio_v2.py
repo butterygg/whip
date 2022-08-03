@@ -1,4 +1,3 @@
-# pylint: disable=duplicate-code
 import json
 from os import getenv
 from typing import Any, Optional
@@ -18,7 +17,7 @@ CACHE_KEY_TEMPLATE_PORTFOLIO = "{address}_{chain_id}_{date}"
 async def _get_portfolio_data(
     treasury_address: str, chain_id: Optional[int] = 1
 ) -> dict[str, Any]:
-    timeout = Timeout(10.0, read=60.0, connect=90.0)
+    timeout = Timeout(10.0, read=90.0, connect=120.0)
     async with AsyncClient(timeout=timeout) as client:
         url = (
             f"https://api.covalenthq.com/v1/{chain_id}/address/{treasury_address}/"
@@ -52,11 +51,14 @@ async def get_treasury(
             logger = get_logger(__name__)
             if error.__class__ is HTTPStatusError:
                 logger.error(
-                    "unable to receive a Covalent `portfolio_v2` API response",
+                    "unable to receive a Covalent `portfolio_v2` API response for %s",
+                    treasury_address,
                     exc_info=error,
                 )
             logger.error(
-                "error processing Covalent `portfolio_v2` API response", exc_info=error
+                "error processing Covalent `portfolio_v2` API response for %s",
+                treasury_address,
+                exc_info=error,
             )
             raise
 

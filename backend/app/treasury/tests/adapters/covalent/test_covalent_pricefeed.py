@@ -6,8 +6,7 @@ from dateutil.tz import UTC
 from fakeredis import FakeRedis
 from pytest import MonkeyPatch, mark
 
-from backend.app.treasury.adapters import covalent_pricefeed
-
+from ....adapters import covalent_pricefeed
 from .conftest import covalent_hist_prices_v2_transfers, mocked_datetime
 
 
@@ -31,13 +30,15 @@ async def _get_fake_covalent_resp(*_, **__):
 async def test_get_coin_hist_price_redis(monkeypatch: MonkeyPatch):
     fake_provider = FakeRedis()
     monkeypatch.setattr(
-        "backend.app.treasury.adapters.covalent_pricefeed.db",
+        covalent_pricefeed,
+        "db",
         fake_provider,
         raising=True,
     )
 
     monkeypatch.setattr(
-        "backend.app.treasury.adapters.covalent_pricefeed.AsyncClient.get",
+        covalent_pricefeed.AsyncClient,
+        "get",
         _get_fake_covalent_resp,
         raising=True,
     )
@@ -63,13 +64,15 @@ async def test_get_coin_hist_price_redis(monkeypatch: MonkeyPatch):
 async def test_get_coin_hist_price(monkeypatch: MonkeyPatch):
     fake_provider = FakeRedis()
     monkeypatch.setattr(
-        "backend.app.treasury.adapters.covalent_pricefeed.db",
+        covalent_pricefeed,
+        "db",
         fake_provider,
         raising=True,
     )
 
     monkeypatch.setattr(
-        "backend.app.treasury.adapters.covalent_pricefeed.AsyncClient.get",
+        covalent_pricefeed.AsyncClient,
+        "get",
         _get_fake_covalent_resp,
         raising=True,
     )

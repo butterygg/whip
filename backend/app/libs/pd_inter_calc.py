@@ -46,6 +46,7 @@ def make_daily_hist_balance(
 
     for index, row in enumerate(rows):
         current_date = row[0].replace(hour=0, minute=0, second=0, microsecond=0)
+        current_balance = row[1]
         if index < len(rows) - 1:
             next_date = rows[index + 1][0].replace(
                 hour=0, minute=0, second=0, microsecond=0
@@ -55,7 +56,6 @@ def make_daily_hist_balance(
             if next_date > _today:
                 break
 
-        current_balance = row[1]
         current_date = fill_until(next_date, current_date)
 
     # Forward fill last dates from last balance change until today with

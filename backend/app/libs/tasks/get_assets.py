@@ -1,6 +1,7 @@
 from asyncio import gather, run
 from datetime import datetime, timedelta
 from json import dumps
+from typing import Optional
 
 from asgiref.sync import async_to_sync
 from celery.schedules import crontab
@@ -24,9 +25,11 @@ from ...treasury import (
 )
 from .. import price_stats
 from .redis import (
+    retrieve_troublesome_treasuries,
     store_asset_correlations,
     store_asset_hist_balance,
     store_asset_hist_performance,
+    store_troublesome_treasuries,
 )
 
 load_dotenv()
@@ -54,9 +57,17 @@ def setup_init_tasks(sender, **_):
         name="reload token whitelist",
     )
 
+    sender.add_periodic_task(
+        crontab(minute=0, hour="*/1", nowfun=datetime.utcnow),
+        retry_troublesome_treasuries.s(),
+        name="Retry `reload_treasuries_stats` on treasuries which have timed out",
+    )
+
 
 @celery_app.task(name="tasks.reload_treasuries_stats")
-def reload_treasuries_stats():
+def reload_treasuries_stats(
+    troublesome_treasuries: Optional[set[tuple[str, int]]] = None
+):
     logger = get_task_logger(__name__)
 
     end_date: datetime = today(UTC)
@@ -65,10 +76,16 @@ def reload_treasuries_stats():
     start = start_date.isoformat()[:10]
     end = end_date.isoformat()[:10]
 
-    treasuries = retrieve_treasuries_metadata(db)
+    treasuries = (
+        troublesome_treasuries
+        if troublesome_treasuries
+        else retrieve_treasuries_metadata(db)
+    )
     if not treasuries:
         store_treasuries_metadata(db, get_treasury_list())
         treasuries = retrieve_treasuries_metadata(db)
+
+    candidate_troublesome_treasuries: set[tuple[str, int]] = set()
 
     for treasury_metadata in treasuries:
         with db.pipeline() as pipe:
@@ -94,6 +111,7 @@ def reload_treasuries_stats():
                     error_msg,
                     treasury_metadata[0],
                 )
+                candidate_troublesome_treasuries.add(treasury_metadata)
                 continue
 
             for (
@@ -129,6 +147,9 @@ def reload_treasuries_stats():
                 provider=pipe,
             )
 
+            store_troublesome_treasuries(
+                candidate_troublesome_treasuries, provider=pipe
+            )
             pipe.execute()
 
 
@@ -152,3 +173,10 @@ def reload_whitelist():
 @celery_app.task(name="tasks.reload_treasuries_list")
 def reload_treasuries_list():
     store_treasuries_metadata(db, get_treasury_list())
+
+
+@celery_app.task(name="tasks.retry_troublesome_treasuries")
+def retry_troublesome_treasuries():
+    troublesome_treasuries = retrieve_troublesome_treasuries(db)
+    if troublesome_treasuries:
+        reload_treasuries_stats(troublesome_treasuries)
