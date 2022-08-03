@@ -1,8 +1,30 @@
+import json
 from typing import Any, Union
 
 import redis
 
 BALANCES_KEY_TEMPLATE = "{address}_{symbol}"
+
+
+def store_troublesome_treasuries(
+    troublesome_treasuries: set[tuple[str, int]],
+    provider: Union[redis.Redis, redis.client.Pipeline],
+):
+    troublesome_treasury_payload = {
+        json.dumps(troublesome_treasury)
+        for troublesome_treasury in troublesome_treasuries
+    }
+
+    provider.sadd("treasuries_to_retry", *troublesome_treasury_payload)
+
+
+def retrieve_troublesome_treasuries(
+    provider: Union[redis.Redis, redis.client.Pipeline]
+) -> set[tuple[str, int]]:
+    troublesome_treasuries: set[tuple[str, int]] = {
+        tuple(json.loads(t)) for t in provider.smembers("treasuries_to_retry")
+    }
+    return troublesome_treasuries
 
 
 def store_hash_set(
