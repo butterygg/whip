@@ -14,7 +14,7 @@ ETH_QUERY_TEMPLATE = """
 query{
   ethereum{
     address(address: {is: "$address"}){
-      balances(currency: {is: "ETH"}, date: {till: "2022-05-01"}){
+      balances(currency: {is: "ETH"}, date: {till: "$end_date"}){
         history{
           transferAmount
           value
@@ -32,14 +32,15 @@ CACHE_HASH = "bitquery_eth"
 CACHE_KEY_TEMPLATE = "{address}_{date}"
 
 
-async def _get_data(treasury_address: str) -> Any:
+async def _get_data(treasury_address: str, end_date: str) -> Any:
     timeout = Timeout(10.0, read=15.0, connect=30.0)
+    query_body = ETH_QUERY_TEMPLATE.replace("$address", treasury_address)
     async with AsyncClient(
         headers={"X-API-KEY": BITQUERY_API_KEY}, timeout=timeout
     ) as client:
         resp = await client.post(
             BITQUERY_URL,
-            json={"query": ETH_QUERY_TEMPLATE.replace("$address", treasury_address)},
+            json={"query": query_body.replace("$end_date", end_date)},
         )
         resp.raise_for_status()
         try:
@@ -50,13 +51,13 @@ async def _get_data(treasury_address: str) -> Any:
 
 
 async def get_eth_transfers(treasury_address: str) -> list[Transfer]:
-    cache_date = dateutil.utils.today(UTC).strftime("%Y-%m-%d")
+    cache_date: str = dateutil.utils.today(UTC).strftime("%Y-%m-%d")
     cache_key = CACHE_KEY_TEMPLATE.format(address=treasury_address, date=cache_date)
     if db.hexists(CACHE_HASH, cache_key):
         balance_hist_data = json.loads(db.hget(CACHE_HASH, cache_key))
 
     else:
-        balance_hist_data = await _get_data(treasury_address)
+        balance_hist_data = await _get_data(treasury_address, cache_date)
         db.hset(CACHE_HASH, cache_key, json.dumps(balance_hist_data))
 
     return [
