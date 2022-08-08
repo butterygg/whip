@@ -5,13 +5,14 @@ from typing import Any, Generator, Optional
 import dateutil
 from celery.utils.log import get_logger
 from httpx import AsyncClient, HTTPStatusError, Timeout
-from pytz import UTC
 
 from .... import db
 from ...models import Transfer
+from .. import set_data_and_expiry
 
-CACHE_HASH_TRANSFERS = "covalent_transfer_items"
-CACHE_KEY_TEMPLATE_TRANSFERS = "{treasury_address}_{contract_address}_{chain_id}_{date}"
+CACHE_KEY_TEMPLATE_TRANSFERS = (
+    "covalent_transfer_items_{treasury_address}_{contract_address}_{chain_id}_{date}"
+)
 
 KEY = os.getenv("COVALENT_KEY")
 TRANSFERS_V2_URL_TEMPLATE = (
@@ -84,7 +85,7 @@ async def get_token_transfers(
     Thus, the balance for a given treasury can only be calculated for
     the date of transfer from the covalent response.
     """
-    cache_date = dateutil.utils.today(UTC).strftime("%Y-%m-%d")
+    cache_date = dateutil.utils.today(dateutil.tz.UTC).strftime("%Y-%m-%d")
     cache_key = CACHE_KEY_TEMPLATE_TRANSFERS.format(
         treasury_address=treasury_address,
         contract_address=contract_address,
@@ -92,8 +93,8 @@ async def get_token_transfers(
         date=cache_date,
     )
 
-    if db.hexists(CACHE_HASH_TRANSFERS, cache_key):
-        transfer_items = json.loads(db.hget(CACHE_HASH_TRANSFERS, cache_key))
+    if db.exists(cache_key) > 0:
+        transfer_items = json.loads(db.get(cache_key))
     else:
         try:
             transfer_items = [
@@ -118,6 +119,6 @@ async def get_token_transfers(
             )
             raise
 
-        db.hset(CACHE_HASH_TRANSFERS, cache_key, json.dumps(transfer_items))
+        set_data_and_expiry(cache_key, json.dumps(transfer_items), db)
 
     return list(_transfers_of_items(transfer_items))

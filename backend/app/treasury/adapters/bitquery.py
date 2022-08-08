@@ -8,6 +8,7 @@ from pytz import UTC
 
 from ... import db
 from ..models import Transfer
+from .redis import set_data_and_expiry
 
 BITQUERY_API_KEY = os.environ["BITQUERY_API_KEY"]
 ETH_QUERY_TEMPLATE = """
@@ -28,8 +29,7 @@ query{
 BITQUERY_URL = "https://graphql.bitquery.io/"
 
 
-CACHE_HASH = "bitquery_eth"
-CACHE_KEY_TEMPLATE = "{address}_{date}"
+CACHE_KEY_TEMPLATE = "bitquery_eth_{address}_{date}"
 
 
 async def _get_data(treasury_address: str, end_date: str) -> Any:
@@ -53,12 +53,11 @@ async def _get_data(treasury_address: str, end_date: str) -> Any:
 async def get_eth_transfers(treasury_address: str) -> list[Transfer]:
     cache_date: str = dateutil.utils.today(UTC).strftime("%Y-%m-%d")
     cache_key = CACHE_KEY_TEMPLATE.format(address=treasury_address, date=cache_date)
-    if db.hexists(CACHE_HASH, cache_key):
-        balance_hist_data = json.loads(db.hget(CACHE_HASH, cache_key))
-
+    if db.exists(cache_key) > 0:
+        balance_hist_data = json.loads(db.get(cache_key))
     else:
         balance_hist_data = await _get_data(treasury_address, cache_date)
-        db.hset(CACHE_HASH, cache_key, json.dumps(balance_hist_data))
+        set_data_and_expiry(cache_key, json.dumps(balance_hist_data), db)
 
     return [
         Transfer(

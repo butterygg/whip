@@ -118,7 +118,7 @@ async def get_portfolio(address: str, start=str):
     end = end_date.strftime("%Y-%m-%d")
 
     portfolio = Portfolio.from_treasury_with_assets(
-        *(await build_treasury_with_assets(address, 1, start, end)),
+        *(await build_treasury_with_assets(((address, 1), start, end))),
         start,
         end,
     )
