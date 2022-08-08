@@ -1,6 +1,6 @@
 # pylint: disable=duplicate-code
-import datetime
 import json
+from datetime import datetime, timedelta
 from os import getenv
 from typing import Any, TypeVar
 
@@ -20,8 +20,8 @@ RawPrices = TypeVar("RawPrices", list[dict[str, Any]], None)
 
 async def _get_pricing_data(
     token_address: str,
-    start_date: datetime.datetime,
-    end_date: datetime.datetime,
+    start_date: datetime,
+    end_date: datetime,
     chain_id: int = 1,
 ) -> RawPrices:
     start = start_date.strftime("%Y-%m-%d")
@@ -53,7 +53,7 @@ async def get_token_hist_price_covalent(
     token_address: str, token_symbol: str
 ) -> list[Price]:
     end_date = dateutil.utils.today(dateutil.tz.UTC)
-    start_date = end_date - datetime.timedelta(days=366)
+    start_date = end_date - timedelta(days=366)
 
     cache_key = CACHE_KEY_TEMPLATE_PRICES.format(
         symbol=token_symbol,
@@ -89,7 +89,12 @@ async def get_token_hist_price_covalent(
         # Set an expiry flag on this hset name for a day.
         # It will only set an expire on this name if none exists for it.
         if db.ttl(CACHE_HASH_PRICES) <= 0:
-            db.expire(CACHE_HASH_PRICES, 86400)
+            time_to_evict = datetime.now(tz=dateutil.tz.UTC) + timedelta(days=1)
+            time_to_evict_ts = time_to_evict.replace(
+                hour=0, minute=0, second=0, microsecond=0
+            ).timestamp()
+
+            db.expireat(CACHE_HASH_PRICES, int(time_to_evict_ts))
 
     return [
         Price(

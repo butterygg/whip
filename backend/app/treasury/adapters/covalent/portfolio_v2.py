@@ -5,13 +5,12 @@ from typing import Any, Optional
 import dateutil
 from celery.utils.log import get_logger
 from httpx import AsyncClient, HTTPStatusError, Timeout
-from pytz import UTC
 
 from .... import db
 from ...models import ERC20, Treasury
+from .. import set_data_and_expiry
 
-CACHE_HASH_TREASURY = "covalent_treasury"
-CACHE_KEY_TEMPLATE_PORTFOLIO = "{address}_{chain_id}_{date}"
+CACHE_KEY_TEMPLATE_PORTFOLIO = "covalent_treasury_{address}_{chain_id}_{date}"
 
 
 async def _get_portfolio_data(
@@ -33,13 +32,13 @@ async def _get_portfolio_data(
 async def get_treasury(
     treasury_address: str, whitelist: list[str], chain_id: Optional[int] = 1
 ) -> Treasury:
-    cache_date = dateutil.utils.today(UTC).strftime("%Y-%m-%d")
+    cache_date = dateutil.utils.today(dateutil.tz.UTC).strftime("%Y-%m-%d")
     cache_key = CACHE_KEY_TEMPLATE_PORTFOLIO.format(
         address=treasury_address, chain_id=chain_id, date=cache_date
     )
 
-    if db.hexists(CACHE_HASH_TREASURY, cache_key):
-        portfolio_data = json.loads(db.hget(CACHE_HASH_TREASURY, cache_key))
+    if db.exists(cache_key) > 0:
+        portfolio_data = json.loads(db.get(cache_key))
     else:
         try:
             portfolio_data = await _get_portfolio_data(treasury_address, chain_id)
@@ -62,7 +61,7 @@ async def get_treasury(
             )
             raise
 
-        db.hset(CACHE_HASH_TREASURY, cache_key, json.dumps(portfolio_data))
+        set_data_and_expiry(cache_key, json.dumps(portfolio_data), db)
 
     # Certain tokens a treasury may hold are noted as spam.
     # To prevent these tokens from corrupting the data,

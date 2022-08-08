@@ -20,6 +20,7 @@ from ...token_whitelists import (
 from ...treasury import (
     build_treasury_with_assets,
     get_treasury_list,
+    remove_treasuries_metadata,
     retrieve_treasuries_metadata,
     store_treasuries_metadata,
 )
@@ -46,13 +47,15 @@ def setup_init_tasks(sender, **_):
     )
 
     sender.add_periodic_task(
-        crontab(hour=1, minute=0, day_of_week=[0, 3], nowfun=datetime.utcnow),
+        crontab(
+            hour=1, minute=0, day_of_week=[0], day_of_month="14", nowfun=datetime.utcnow
+        ),
         reload_treasuries_list.s(),
         name="reload treasury list",
     )
 
     sender.add_periodic_task(
-        crontab(hour=0, minute=0, day_of_week=[1], nowfun=datetime.utcnow),
+        crontab(hour=0, minute=0, nowfun=datetime.utcnow),
         reload_whitelist.s(),
         name="reload token whitelist",
     )
@@ -96,7 +99,7 @@ def reload_treasuries_stats(
                     asset_hist_balances,
                     _,
                 ) = async_to_sync(build_treasury_with_assets)(
-                    *treasury_metadata, start, end
+                    (treasury_metadata, start, end)
                 )
             except TypeError:
                 # This currently only raises when the given treasury has no balance
@@ -147,10 +150,10 @@ def reload_treasuries_stats(
                 provider=pipe,
             )
 
-            store_troublesome_treasuries(
-                candidate_troublesome_treasuries, provider=pipe
-            )
             pipe.execute()
+
+    if candidate_troublesome_treasuries:
+        store_troublesome_treasuries(candidate_troublesome_treasuries, provider=db)
 
 
 async def gather_all_whitelists() -> tuple[list[str]]:
@@ -172,6 +175,7 @@ def reload_whitelist():
 
 @celery_app.task(name="tasks.reload_treasuries_list")
 def reload_treasuries_list():
+    remove_treasuries_metadata(db)
     store_treasuries_metadata(db, get_treasury_list())
 
 

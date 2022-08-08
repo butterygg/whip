@@ -21,22 +21,39 @@ from .models import (
 )
 
 
+async def make_transfers(treasury_address: str, asset: ERC20) -> list[Transfer]:
+    return (
+        await bitquery.get_eth_transfers(treasury_address)
+        if asset.token_symbol == "ETH"
+        else await get_token_transfers(treasury_address, asset.token_address)
+    )
+
+
+async def make_transfers_and_end_balance_for_treasury(
+    treasury: Treasury,
+) -> dict[str, tuple[list[Transfer], float]]:
+    transfers_and_end_balance: dict[str, tuple[list[Transfer], float]] = {}
+
+    for asset in treasury.assets:
+        transfers_for_asset = await make_transfers(treasury.address, asset)
+        if transfers_for_asset:
+            transfers_and_end_balance[asset.token_symbol] = (
+                transfers_for_asset,
+                asset.balance,
+            )
+
+    return transfers_and_end_balance
+
+
 async def make_transfers_balances_for_treasury(
     treasury: Treasury,
 ) -> BalancesAtTransfers:
     "Returns series of balances defined at times of assets transfers"
 
-    async def get_transfers(asset: ERC20) -> list[Transfer]:
-        return (
-            await bitquery.get_eth_transfers(treasury.address)
-            if asset.token_symbol == "ETH"
-            else await get_token_transfers(treasury.address, asset.token_address)
-        )
+    transfers_and_end_balance = await make_transfers_and_end_balance_for_treasury(
+        treasury
+    )
 
-    transfers_and_end_balance = {
-        asset.token_symbol: (await get_transfers(asset), asset.balance)
-        for asset in treasury.assets
-    }
     return BalancesAtTransfers.from_transfer_and_end_balance_dict(
         transfers_and_end_balance
     )
@@ -139,8 +156,10 @@ def update_treasury_assets_risk_contributions(
 
 
 async def build_treasury_with_assets(
-    treasury_address: str, chain_id: int, start: str, end: str
+    request_params: tuple[tuple[str, int], str, str]
 ) -> tuple[Treasury, Prices, Balances, TotalBalance]:
+    ((treasury_address, chain_id), start, end) = request_params
+
     treasury = await make_treasury_from_address(treasury_address, chain_id)
 
     prices = await make_prices_from_tokens(

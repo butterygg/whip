@@ -10,6 +10,7 @@ from .actions import (
 )
 from .adapters import (
     get_treasury_list,
+    remove_treasuries_metadata,
     retrieve_treasuries_metadata,
     store_treasuries_metadata,
 )

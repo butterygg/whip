@@ -1,7 +1,9 @@
 import json
+from datetime import datetime, timedelta
 from typing import Any, Union
 
 import redis
+from dateutil.tz import UTC
 
 BALANCES_KEY_TEMPLATE = "{address}_{symbol}"
 
@@ -34,6 +36,12 @@ def store_hash_set(
     provider: Union[redis.Redis, redis.client.Pipeline],
 ):
     provider.hset(_hash, key, value)
+
+    time_to_evict = datetime.now(tz=UTC) + timedelta(days=1)
+    provider.expireat(
+        _hash,
+        time_to_evict.replace(hour=0, minute=0, second=0),
+    )
 
 
 def store_asset_hist_balance(

@@ -1,7 +1,6 @@
 # pylint: disable=protected-access
 # pylint: disable=unused-argument
 # pylint: disable=redefined-outer-name
-
 from copy import deepcopy
 from json import loads
 
@@ -97,23 +96,22 @@ async def test_successful_output(patch_resp, patch_db):
 async def test_successful_cache(patch_resp, patch_db):
     await transfers_v2.get_token_transfers("0xa", "0xb", 1)
 
-    fake_cache_key = "{treasury_address}_{contract_address}_{chain_id}_{date}"
+    fake_cache_key_head = "covalent_transfer_items_"
+    fake_cache_key_tail = "{treasury_address}_{contract_address}_{chain_id}_{date}"
+    fake_cache_key = fake_cache_key_head + fake_cache_key_tail
+    fake_cache_key = fake_cache_key.format(
+        treasury_address="0xa",
+        contract_address="0xb",
+        chain_id=1,
+        date=mocked_datetime(use_today=True).strftime("%Y-%m-%d"),
+    )
 
     assert (
-        loads(
-            transfers_v2.db.hget(
-                "covalent_transfer_items",
-                fake_cache_key.format(
-                    treasury_address="0xa",
-                    contract_address="0xb",
-                    chain_id=1,
-                    date=mocked_datetime(use_today=True).strftime("%Y-%m-%d"),
-                ),
-            )
-        )
+        loads(transfers_v2.db.get(fake_cache_key))
         # pylint: disable=unsubscriptable-object
         == MockResponse().json()["data"]["items"]
     )
+    assert transfers_v2.db.ttl(fake_cache_key) in range(0, 86401)
 
 
 @pytest.mark.asyncio
