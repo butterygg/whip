@@ -131,7 +131,7 @@ def reload_treasuries_stats(
                     pipe,
                 )
 
-            for symbol, asset_hist_balance in asset_hist_balances.balances.items():
+            for symbol, asset_hist_balance in asset_hist_balances.usd_balances.items():
                 store_asset_hist_balance(
                     treasury.address,
                     symbol,
